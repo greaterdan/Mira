@@ -50,34 +50,34 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
         onMouseLeave={() => setShowTooltip(false)}
         onClick={onClick}
       >
-        <div className={`w-64 bg-card border ${borderColor} p-4 rounded-full ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
+        <div className={`w-56 h-56 rounded-full bg-card border-2 ${borderColor} p-4 flex flex-col items-center justify-center text-center ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
+          {/* Probability */}
+          <div className={`text-4xl font-bold ${accentColor} mb-1`}>
+            {data.probability}%
+          </div>
+          
+          {/* Position Tag */}
+          <div className={`text-xs px-3 py-1 border ${borderColor} ${accentColor} font-mono rounded-full mb-2`}>
+            {data.position}
+          </div>
+
           {/* Market Title */}
-          <div className="text-xs text-foreground mb-2 leading-tight font-medium">
-            {data.question}
+          <div className="text-xs text-foreground mb-2 leading-tight font-medium px-2">
+            {data.question.length > 60 ? data.question.substring(0, 60) + '...' : data.question}
           </div>
 
-          {/* Probability & Position */}
-          <div className="flex items-baseline justify-between mb-2">
-            <div className={`text-2xl font-bold ${accentColor} tracking-tight`}>
-              {data.probability}%
-            </div>
-            <div className={`text-xs px-2 py-0.5 border ${borderColor} ${accentColor} font-mono rounded-full`}>
-              {data.position}
-            </div>
+          {/* Agent */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            <span>{data.agentEmoji}</span>
+            <span className="font-mono">{data.agentName}</span>
           </div>
 
-          {/* Agent & Price Info */}
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <span>{data.agentEmoji}</span>
-              <span className="font-mono">{data.agentName}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-foreground font-mono">${data.price.toFixed(2)}</span>
-              <span className={data.change >= 0 ? 'text-trade-yes' : 'text-trade-no'}>
-                {data.change >= 0 ? '+' : ''}{data.change.toFixed(1)}%
-              </span>
-            </div>
+          {/* Price & Change */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-foreground font-mono">${data.price.toFixed(2)}</span>
+            <span className={data.change >= 0 ? 'text-trade-yes' : 'text-trade-no'}>
+              {data.change >= 0 ? '+' : ''}{data.change.toFixed(1)}%
+            </span>
           </div>
         </div>
 
