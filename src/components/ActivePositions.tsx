@@ -25,10 +25,10 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
   const winRate = agents.length > 0 ? (profitableAgents / agents.length) * 100 : 0;
 
   return (
-    <div className="h-24 bg-bg-card border-t border-border flex">
-      {/* Left Half: AI Agents */}
-      <div className="w-1/2 border-r border-border">
-        <div className="flex items-center gap-3 px-4 h-full overflow-x-auto">
+    <div className="h-24 bg-bg-card border-t border-border">
+      <div className="flex items-center h-full">
+        {/* AI Agents Section */}
+        <div className="flex items-center gap-3 px-4 flex-1 overflow-x-auto">
           {agents.map((agent, index) => (
           <motion.button
             key={agent.id}
@@ -76,48 +76,46 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
           </motion.button>
         ))}
         </div>
-      </div>
 
-      {/* Right Half: Metrics Dashboard */}
-      <div className="w-1/2 px-6 h-full flex items-center">
-        <div className="grid grid-cols-4 gap-6 w-full">
+        {/* Metrics Section - Integrated */}
+        <div className="flex items-center gap-6 px-6 border-l border-border">
           {/* Total PnL */}
-          <div className="flex flex-col">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+          <div className="flex flex-col min-w-32">
+            <div className="text-[10px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1" style={{ fontWeight: 600 }}>
               TOTAL P&L
             </div>
-            <div className={`text-2xl font-bold ${totalPnL >= 0 ? 'text-trade-yes' : 'text-trade-no'}`} style={{ fontWeight: 700 }}>
+            <div className={`text-xl font-bold ${totalPnL >= 0 ? 'text-trade-yes' : 'text-trade-no'}`} style={{ fontWeight: 700 }}>
               {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(1)}%
             </div>
           </div>
 
           {/* Total Markets */}
-          <div className="flex flex-col">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+          <div className="flex flex-col min-w-28">
+            <div className="text-[10px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1" style={{ fontWeight: 600 }}>
               MARKETS
             </div>
-            <div className="text-2xl font-bold text-foreground" style={{ fontWeight: 700 }}>
+            <div className="text-xl font-bold text-foreground" style={{ fontWeight: 700 }}>
               {totalMarkets}
             </div>
           </div>
 
           {/* Win Rate */}
-          <div className="flex flex-col">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+          <div className="flex flex-col min-w-28">
+            <div className="text-[10px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1" style={{ fontWeight: 600 }}>
               WIN RATE
             </div>
-            <div className="text-2xl font-bold text-terminal-accent" style={{ fontWeight: 700 }}>
+            <div className="text-xl font-bold text-terminal-accent" style={{ fontWeight: 700 }}>
               {winRate.toFixed(0)}%
             </div>
           </div>
 
           {/* Active Agents */}
-          <div className="flex flex-col">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+          <div className="flex flex-col min-w-24">
+            <div className="text-[10px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1" style={{ fontWeight: 600 }}>
               ACTIVE
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-foreground" style={{ fontWeight: 700 }}>
+              <div className="text-xl font-bold text-foreground" style={{ fontWeight: 700 }}>
                 {activeAgents}/{agents.length}
               </div>
               {activeAgents > 0 && (
