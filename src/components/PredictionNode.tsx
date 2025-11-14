@@ -22,7 +22,6 @@ interface PredictionNodeProps {
 
 export const PredictionNode = ({ data, position, isHighlighted, onClick }: PredictionNodeProps) => {
   const [showTooltip, setShowTooltip] = useState(false);
-  
   const borderColor = data.position === "YES" 
     ? "border-trade-yes" 
     : data.position === "NO" 
@@ -36,21 +35,18 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
   return (
     <>
       <motion.div
-        className={`absolute cursor-pointer select-none`}
+        className="absolute cursor-pointer select-none"
         style={{ left: position.x, top: position.y }}
         drag
         dragMomentum={false}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        animate={isHighlighted ? { 
-          borderColor: data.position === "YES" ? "#6b9e7d" : "#ba6b6b",
-          boxShadow: "0 0 8px rgba(134, 239, 172, 0.3)"
-        } : {}}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        onClick={onClick}
       >
-        <div className={`w-56 h-56 rounded-full bg-card border-2 ${borderColor} p-4 flex flex-col items-center justify-center text-center ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
+        {/* The actual circular bubble */}
+        <div className={`relative w-56 h-56 rounded-full bg-card border-2 ${borderColor} p-4 flex flex-col items-center justify-center text-center ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
           {/* Probability */}
           <div className={`text-4xl font-bold ${accentColor} mb-1`}>
             {data.probability}%
@@ -87,7 +83,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
             className={`absolute inset-0 border-2 ${borderColor} pointer-events-none rounded-full`}
             animate={{
               opacity: [0.5, 0, 0.5],
-              scale: [1, 1.05, 1],
+              scale: [1, 1.1, 1],
             }}
             transition={{ duration: 2, repeat: Infinity }}
           />
@@ -99,12 +95,14 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
         <motion.div
           className="fixed z-50 w-80 bg-card border border-border p-3 shadow-lg rounded-xl"
           style={{ 
-            left: position.x + 280, 
+            left: position.x + 250, 
             top: position.y,
           }}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.15 }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
         >
           <div className="text-xs text-terminal-accent font-mono mb-2">
             &gt; AI_REASONING
