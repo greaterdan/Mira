@@ -17,10 +17,19 @@ interface ActivePositionsProps {
 }
 
 export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActivePositionsProps) => {
+  // Calculate metrics
+  const totalPnL = agents.reduce((sum, agent) => sum + agent.pnl, 0);
+  const totalMarkets = agents.reduce((sum, agent) => sum + agent.openMarkets, 0);
+  const activeAgents = agents.filter(agent => agent.isActive).length;
+  const profitableAgents = agents.filter(agent => agent.pnl > 0).length;
+  const winRate = agents.length > 0 ? (profitableAgents / agents.length) * 100 : 0;
+
   return (
-    <div className="h-24 bg-bg-card border-t border-border">
-      <div className="flex items-center gap-3 px-4 h-full overflow-x-auto">
-        {agents.map((agent, index) => (
+    <div className="h-24 bg-bg-card border-t border-border flex">
+      {/* Left Half: AI Agents */}
+      <div className="w-1/2 border-r border-border">
+        <div className="flex items-center gap-3 px-4 h-full overflow-x-auto">
+          {agents.map((agent, index) => (
           <motion.button
             key={agent.id}
             onClick={() => onAgentClick(agent.id)}
@@ -66,6 +75,57 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
             </div>
           </motion.button>
         ))}
+        </div>
+      </div>
+
+      {/* Right Half: Metrics Dashboard */}
+      <div className="w-1/2 px-6 h-full flex items-center">
+        <div className="grid grid-cols-4 gap-6 w-full">
+          {/* Total PnL */}
+          <div className="flex flex-col">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+              TOTAL P&L
+            </div>
+            <div className={`text-2xl font-bold ${totalPnL >= 0 ? 'text-trade-yes' : 'text-trade-no'}`} style={{ fontWeight: 700 }}>
+              {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(1)}%
+            </div>
+          </div>
+
+          {/* Total Markets */}
+          <div className="flex flex-col">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+              MARKETS
+            </div>
+            <div className="text-2xl font-bold text-foreground" style={{ fontWeight: 700 }}>
+              {totalMarkets}
+            </div>
+          </div>
+
+          {/* Win Rate */}
+          <div className="flex flex-col">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+              WIN RATE
+            </div>
+            <div className="text-2xl font-bold text-terminal-accent" style={{ fontWeight: 700 }}>
+              {winRate.toFixed(0)}%
+            </div>
+          </div>
+
+          {/* Active Agents */}
+          <div className="flex flex-col">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-[0.08em] mb-1.5" style={{ fontWeight: 600 }}>
+              ACTIVE
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-foreground" style={{ fontWeight: 700 }}>
+                {activeAgents}/{agents.length}
+              </div>
+              {activeAgents > 0 && (
+                <div className="w-2 h-2 rounded-full bg-trade-yes animate-pulse" />
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
