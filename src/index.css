@@ -8,43 +8,55 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 95%;
-    --foreground: 0 0% 0%;
+    /* Dark terminal theme */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 88%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 0%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 88%;
 
-    --popover: 0 0% 98%;
-    --popover-foreground: 0 0% 0%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 88%;
 
-    --primary: 150 70% 72%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 150 80% 65%;
+    --primary-foreground: 0 0% 5%;
 
-    --secondary: 0 0% 90%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 88%;
 
-    --muted: 0 0% 92%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 50%;
 
-    --accent: 150 70% 72%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 150 80% 65%;
+    --accent-foreground: 0 0% 5%;
 
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 0 0% 88%;
 
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 150 70% 72%;
+    --border: 0 0% 15%;
+    --input: 0 0% 12%;
+    --ring: 150 80% 65%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
     
-    --trade-yes: 150 70% 72%;
-    --trade-no: 0 70% 60%;
-    --neural-glow: 150 100% 85%;
-    --terminal-accent: 0 0% 20%;
+    /* Terminal colors */
+    --trade-yes: 150 80% 65%;
+    --trade-no: 0 75% 58%;
+    --trade-neutral: 200 80% 60%;
+    --neural-glow: 150 100% 75%;
+    --terminal-accent: 150 80% 65%;
+    --terminal-red: 0 75% 58%;
+    --terminal-blue: 200 80% 60%;
     
-    --shadow-soft: 0 2px 20px rgba(0, 0, 0, 0.08);
-    --shadow-glow: 0 0 30px rgba(133, 238, 170, 0.3);
+    /* Neon glows */
+    --glow-green: 0 0 20px rgba(133, 238, 170, 0.6), 0 0 40px rgba(133, 238, 170, 0.3);
+    --glow-red: 0 0 20px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.3);
+    --glow-blue: 0 0 20px rgba(56, 189, 248, 0.6), 0 0 40px rgba(56, 189, 248, 0.3);
+    
+    --shadow-soft: 0 4px 30px rgba(0, 0, 0, 0.5);
+    --shadow-glow-green: 0 0 30px rgba(133, 238, 170, 0.4);
+    --shadow-glow-red: 0 0 30px rgba(239, 68, 68, 0.4);
+    --shadow-glow-blue: 0 0 30px rgba(56, 189, 248, 0.4);
     
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -114,25 +126,53 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-mono antialiased;
   }
-  
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 }
 
 @layer utilities {
-  .pulse-glow {
-    animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  .pulse-glow-green {
+    animation: pulse-glow-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
   
-  @keyframes pulse-glow {
+  .pulse-glow-red {
+    animation: pulse-glow-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .pulse-glow-blue {
+    animation: pulse-glow-blue 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse-glow-green {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 20px rgba(133, 238, 170, 0.4);
+      box-shadow: 0 0 20px rgba(133, 238, 170, 0.6), 0 0 40px rgba(133, 238, 170, 0.3);
     }
     50% {
-      opacity: 0.8;
-      box-shadow: 0 0 40px rgba(133, 238, 170, 0.6);
+      opacity: 0.9;
+      box-shadow: 0 0 30px rgba(133, 238, 170, 0.8), 0 0 60px rgba(133, 238, 170, 0.5);
+    }
+  }
+  
+  @keyframes pulse-glow-red {
+    0%, 100% {
+      opacity: 1;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+      opacity: 0.9;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 0 60px rgba(239, 68, 68, 0.5);
+    }
+  }
+  
+  @keyframes pulse-glow-blue {
+    0%, 100% {
+      opacity: 1;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.6), 0 0 40px rgba(56, 189, 248, 0.3);
+    }
+    50% {
+      opacity: 0.9;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.8), 0 0 60px rgba(56, 189, 248, 0.5);
     }
   }
   
@@ -146,5 +186,30 @@ All colors MUST be HSL.
     to {
       stroke-dashoffset: 0;
     }
+  }
+  
+  .terminal-scan {
+    animation: terminal-scan 3s linear infinite;
+  }
+  
+  @keyframes terminal-scan {
+    0% {
+      transform: translateY(-100%);
+    }
+    100% {
+      transform: translateY(100%);
+    }
+  }
+  
+  .text-glow-green {
+    text-shadow: 0 0 10px rgba(133, 238, 170, 0.8), 0 0 20px rgba(133, 238, 170, 0.4);
+  }
+  
+  .text-glow-red {
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+  
+  .text-glow-blue {
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
   }
 }
