@@ -51,7 +51,7 @@ export const PerformanceChart = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-bg-elevated border border-border">
+    <div className="h-full flex flex-col bg-bg-elevated">
       {/* Chart Header */}
       <div className="h-10 flex items-center justify-between px-4 border-b border-border bg-bg-elevated">
         <span className="text-xs text-terminal-accent font-mono leading-none flex items-center">&gt; PERFORMANCE_INDEX</span>
