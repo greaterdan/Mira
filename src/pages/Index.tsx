@@ -23,6 +23,8 @@ const mockAgents: Agent[] = [
   { id: "openai", name: "OPENAI", emoji: "🧠", isActive: true, pnl: 68.3, openMarkets: 15, lastTrade: "NO on Thunderbolts @ $0.004" },
   { id: "deepseek", name: "DEEPSEEK", emoji: "🔮", isActive: false, pnl: -12.8, openMarkets: 8, lastTrade: "YES on ETH $3,500 @ $0.72" },
   { id: "gemini", name: "GEMINI", emoji: "♊", isActive: false, pnl: 91.2, openMarkets: 18, lastTrade: "YES on SBF >20yrs @ $0.88" },
+  { id: "claude", name: "CLAUDE", emoji: "🎭", isActive: false, pnl: 55.7, openMarkets: 14, lastTrade: "NO on AI AGI 2030 @ $0.55" },
+  { id: "llama", name: "LLAMA", emoji: "🦙", isActive: false, pnl: 34.2, openMarkets: 9, lastTrade: "YES on Bitcoin $100K @ $0.82" },
 ];
 
 const mockPredictions: PredictionNodeData[] = [
