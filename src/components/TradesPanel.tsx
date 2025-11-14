@@ -68,10 +68,10 @@ export const TradesPanel = ({ isOpen, onClose, predictionTitle }: TradesPanelPro
       {isOpen && (
         <motion.div
           className="fixed left-0 bottom-24 w-1/2 h-1/2 bg-card border-t border-r border-border z-50 flex flex-col"
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          initial={{ y: "100%", opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 50, opacity: 0 }}
+          transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
