@@ -95,10 +95,10 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick, onShowT
       {/* Hover Tooltip */}
       {showTooltip && (
         <motion.div
-          className="fixed z-50 w-80 bg-card border border-border p-3 shadow-lg rounded-xl"
+          className="absolute z-50 w-80 bg-card border border-border p-3 shadow-lg rounded-xl pointer-events-auto"
           style={{ 
-            left: position.x + 250, 
-            top: position.y,
+            left: 280, 
+            top: 0,
           }}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -122,7 +122,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick, onShowT
                 onShowTrades?.();
                 setShowTooltip(false);
               }}
-              className="w-full text-xs px-2 py-1 border border-border hover:bg-muted transition-colors"
+              className="w-full text-xs px-2 py-1.5 border border-border hover:bg-muted transition-colors cursor-pointer"
             >
               Show Trades
             </button>
