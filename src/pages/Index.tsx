@@ -5,7 +5,8 @@ import { SystemStatusBar } from "@/components/SystemStatusBar";
 import { ActivePositions } from "@/components/ActivePositions";
 import { TradesPanel } from "@/components/TradesPanel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface Agent {
   id: string;
@@ -93,6 +94,7 @@ const Index = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [selectedCategory, setSelectedCategory] = useState<string>("All Markets");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Simulate AI trading activity
   useEffect(() => {
@@ -202,7 +204,11 @@ const Index = () => {
       ? true
       : getCategoryForPrediction(p.question) === selectedCategory;
     
-    return agentMatch && categoryMatch;
+    const searchMatch = searchQuery.trim() === ""
+      ? true
+      : p.question.toLowerCase().includes(searchQuery.toLowerCase().trim());
+    
+    return agentMatch && categoryMatch && searchMatch;
   });
 
   const nodePositions = [
@@ -224,14 +230,14 @@ const Index = () => {
         <div className="w-1/2 relative border-r border-border overflow-hidden flex flex-col bg-background">
           {/* Market Category Dropdown */}
           <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-bg-elevated">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
               <span className="text-xs text-terminal-accent font-mono">&gt; DASHBOARD</span>
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors border border-border bg-background">
                   {selectedCategory}
                   <ChevronDown className="h-3 w-3 opacity-50" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 bg-background border-border">
+                <DropdownMenuContent align="start" className="w-48 bg-background border-border z-50">
                   {marketCategories.map((category) => (
                     <DropdownMenuItem
                       key={category}
@@ -243,6 +249,18 @@ const Index = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Search markets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-9 pr-3 text-xs bg-background border-border focus:border-terminal-accent transition-colors"
+                />
+              </div>
             </div>
             <span className="text-xs text-muted-foreground font-mono">
               {filteredPredictions.length} {filteredPredictions.length === 1 ? 'Market' : 'Markets'}
