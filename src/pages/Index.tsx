@@ -276,7 +276,7 @@ const Index = () => {
 
           {/* Prediction Map Container */}
           <div 
-            className="flex-1 relative overflow-auto"
+            className="flex-1 relative overflow-hidden"
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
