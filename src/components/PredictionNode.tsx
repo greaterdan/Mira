@@ -50,7 +50,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
         onMouseLeave={() => setShowTooltip(false)}
         onClick={onClick}
       >
-        <div className={`w-64 bg-card border ${borderColor} p-3 ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
+        <div className={`w-64 bg-card border ${borderColor} p-4 rounded-full ${isHighlighted ? 'opacity-100' : 'opacity-90'}`}>
           {/* Market Title */}
           <div className="text-xs text-foreground mb-2 leading-tight font-medium">
             {data.question}
@@ -61,7 +61,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
             <div className={`text-2xl font-bold ${accentColor} tracking-tight`}>
               {data.probability}%
             </div>
-            <div className={`text-xs px-2 py-0.5 border ${borderColor} ${accentColor} font-mono`}>
+            <div className={`text-xs px-2 py-0.5 border ${borderColor} ${accentColor} font-mono rounded-full`}>
               {data.position}
             </div>
           </div>
@@ -84,7 +84,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
         {/* Pulse animation on highlight */}
         {isHighlighted && (
           <motion.div
-            className={`absolute inset-0 border-2 ${borderColor} pointer-events-none`}
+            className={`absolute inset-0 border-2 ${borderColor} pointer-events-none rounded-full`}
             animate={{
               opacity: [0.5, 0, 0.5],
               scale: [1, 1.05, 1],
@@ -97,7 +97,7 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick }: Predi
       {/* Hover Tooltip */}
       {showTooltip && (
         <motion.div
-          className="fixed z-50 w-80 bg-card border border-border p-3 shadow-lg"
+          className="fixed z-50 w-80 bg-card border border-border p-3 shadow-lg rounded-xl"
           style={{ 
             left: position.x + 280, 
             top: position.y,
