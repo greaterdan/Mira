@@ -27,7 +27,7 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
   return (
     <div className="h-24 bg-bg-card border-t border-border flex">
       {/* Left Half: AI Agents (under bubble maps) */}
-      <div className="w-1/2 border-r border-border">
+      <div className="w-1/2">
         <div className="flex items-center gap-3 px-4 h-full overflow-x-auto">
           {agents.map((agent, index) => (
           <motion.button
