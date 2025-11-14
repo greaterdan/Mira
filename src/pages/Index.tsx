@@ -231,7 +231,7 @@ const Index = () => {
         {/* LEFT: Prediction Nodes */}
         <div className="w-1/2 relative border-r border-border overflow-hidden flex flex-col">
           {/* Market Category Dropdown */}
-          <div className="px-6 py-3 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-sm">
+          <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <span className="text-sm font-mono text-muted-foreground">DASHBOARD</span>
               <DropdownMenu>
