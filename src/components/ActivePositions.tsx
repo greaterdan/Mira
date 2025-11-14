@@ -81,20 +81,6 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
                 {winRate.toFixed(0)}%
               </div>
             </div>
-
-            <div className="flex flex-col">
-              <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                ACTIVE
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-lg font-bold text-foreground" style={{ fontWeight: 700 }}>
-                  {activeAgents}/{agents.length}
-                </div>
-                {activeAgents > 0 && (
-                  <div className="w-2 h-2 rounded-full bg-trade-yes animate-pulse" />
-                )}
-              </div>
-            </div>
           </>
         );
 
@@ -112,16 +98,7 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
 
             <div className="flex flex-col">
               <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                UNREALIZED
-              </div>
-              <div className={`text-lg font-bold ${unrealizedPnL >= 0 ? 'text-trade-yes' : 'text-trade-no'}`} style={{ fontWeight: 700 }}>
-                {unrealizedPnL >= 0 ? '+' : ''}{unrealizedPnL.toFixed(1)}%
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                MAX DRAWDOWN
+                DRAWDOWN
               </div>
               <div className="text-lg font-bold text-trade-no" style={{ fontWeight: 700 }}>
                 {maxDrawdown.toFixed(1)}%
@@ -134,15 +111,6 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
               </div>
               <div className="text-lg font-bold text-terminal-accent" style={{ fontWeight: 700 }}>
                 {sharpeRatio.toFixed(1)}
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                AVG HOLD
-              </div>
-              <div className="text-lg font-bold text-foreground" style={{ fontWeight: 700 }}>
-                {avgHoldTime.toFixed(1)}d
               </div>
             </div>
           </>
@@ -212,16 +180,7 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
 
             <div className="flex flex-col">
               <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                CONSENSUS
-              </div>
-              <div className="text-lg font-bold text-foreground" style={{ fontWeight: 700 }}>
-                {consensusLevel}%
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="text-[9px] text-text-muted font-mono uppercase tracking-[0.08em] mb-0.5" style={{ fontWeight: 600 }}>
-                UTILIZATION
+                CAPITAL
               </div>
               <div className="text-lg font-bold text-trade-yes" style={{ fontWeight: 700 }}>
                 {capitalUtilization}%
@@ -250,7 +209,7 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
             <motion.button
               key={agent.id}
               onClick={() => onAgentClick(agent.id)}
-              className={`flex-shrink-0 w-[115px] h-12 p-1.5 flex items-center gap-1.5 border transition-colors ${
+              className={`flex-shrink-0 w-[105px] h-12 p-1.5 flex items-center gap-1.5 border transition-colors ${
                 selectedAgent === agent.id
                   ? 'border-terminal-accent bg-muted'
                   : 'border-border bg-bg-elevated hover:bg-muted'
@@ -277,17 +236,14 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex items-center justify-between mb-0.5">
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-mono text-foreground" style={{ fontWeight: 500 }}>{agent.name}</span>
-                    <span className={`text-[9px] ${agent.isActive ? 'text-trade-yes' : 'text-text-muted'}`} style={{ fontWeight: 400 }}>
-                      {agent.isActive ? 'ACTIVE' : 'IDLE'}
-                    </span>
+                    <span className="text-[9px] font-mono text-foreground" style={{ fontWeight: 500 }}>{agent.name}</span>
                   </div>
                   <span className={`text-[11px] ${agent.pnl >= 0 ? 'text-trade-yes' : 'text-trade-no'}`} style={{ fontWeight: 600 }}>
                     {agent.pnl >= 0 ? '+' : ''}{agent.pnl.toFixed(1)}%
                   </span>
                 </div>
-                <div className="text-[9px] text-text-secondary truncate" style={{ fontWeight: 400 }}>
-                  {agent.openMarkets} markets • {agent.lastTrade.substring(0, 20)}...
+                <div className="text-[8px] text-text-secondary truncate" style={{ fontWeight: 400 }}>
+                  {agent.openMarkets} mkt • {agent.isActive ? 'ACTIVE' : 'IDLE'}
                 </div>
               </div>
             </motion.button>
@@ -300,17 +256,14 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
         {/* Metrics Section - Clickable */}
         <motion.button
           onClick={cycleMetricView}
-          className="flex items-center gap-2.5 flex-shrink-0 px-2 py-1.5 hover:bg-muted/30 transition-colors rounded border border-transparent hover:border-border group"
+          className="flex items-center gap-2 flex-shrink-0 px-1.5 py-1.5 hover:bg-muted/30 transition-colors rounded border border-transparent hover:border-border group"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
         >
           {renderMetrics()}
           
           {/* View Indicator */}
-          <div className="ml-2 flex flex-col items-center gap-0.5">
-            <div className="text-[7px] text-terminal-accent font-mono uppercase tracking-wider opacity-60 group-hover:opacity-100 transition-opacity">
-              {getViewLabel()}
-            </div>
+          <div className="ml-1 flex flex-col items-center gap-0.5">
             <div className="flex gap-0.5">
               {(['overview', 'performance', 'prediction', 'behavior'] as MetricView[]).map((view) => (
                 <div
