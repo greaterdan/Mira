@@ -211,13 +211,20 @@ const Index = () => {
     return agentMatch && categoryMatch && searchMatch;
   });
 
-  const nodePositions = [
-    { x: 80, y: 50 },
-    { x: 420, y: 50 },
-    { x: 80, y: 320 },
-    { x: 420, y: 320 },
-    { x: 250, y: 185 },
-  ];
+  const nodePositions = filteredPredictions.map((_, index) => {
+    const columns = 2; // 2 columns of bubbles
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const horizontalSpacing = 340; // Space between columns
+    const verticalSpacing = 280; // Space between rows
+    const offsetX = 80; // Left margin
+    const offsetY = 80; // Top margin
+    
+    return {
+      x: offsetX + col * horizontalSpacing,
+      y: offsetY + row * verticalSpacing
+    };
+  });
 
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
@@ -269,7 +276,7 @@ const Index = () => {
 
           {/* Prediction Map Container */}
           <div 
-            className="flex-1 relative overflow-hidden"
+            className="flex-1 relative overflow-auto"
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -279,7 +286,7 @@ const Index = () => {
           >
             {/* Subtle grid background */}
             <div 
-              className="absolute inset-0 opacity-5"
+              className="absolute inset-0 opacity-5 pointer-events-none"
               style={{
                 backgroundImage: `
                   linear-gradient(hsl(var(--border)) 1px, transparent 1px),
@@ -289,13 +296,16 @@ const Index = () => {
               }}
             />
 
-            {/* Prediction Nodes with Zoom */}
+            {/* Prediction Nodes with Zoom - Dynamic height based on content */}
             <div 
-              className="relative h-full origin-center"
+              className="relative origin-top-left"
               style={{ 
                 transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
                 pointerEvents: isDragging ? 'none' : 'auto',
                 transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                minHeight: '100%',
+                width: 'fit-content',
+                paddingBottom: '100px' // Extra space at bottom
               }}
             >
               {filteredPredictions.map((prediction, index) => (
