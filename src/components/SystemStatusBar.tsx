@@ -26,10 +26,10 @@ export const SystemStatusBar = () => {
   };
 
   return (
-    <div className="h-8 bg-bg-elevated border-b border-border flex items-center px-4 text-xs font-mono">
+    <div className="h-8 bg-bg-elevated border-b border-border flex items-center px-4 text-xs font-mono hover:bg-bg-card transition-colors">
       {/* Left: Status */}
       <div className="flex items-center gap-2 min-w-32">
-        <span className="text-terminal-accent">&gt; LIVE_FEED</span>
+        <span className="text-text-secondary uppercase" style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em' }}>&gt; LIVE_FEED</span>
         <div className="w-1.5 h-1.5 rounded-full bg-trade-yes animate-pulse" />
       </div>
 

@@ -66,11 +66,11 @@ export const PredictionNode = ({ data, position, isHighlighted, onClick, onShowT
           
           {/* Position Tag */}
           <div 
-            className={`text-[11px] px-3 py-1 ${accentColor} font-mono rounded-full mb-3`}
+            className={`text-[11px] px-3 py-1 ${accentColor} font-mono rounded-full mb-3 uppercase tracking-wider`}
             style={{
-              backgroundColor: data.position === "YES" 
-                ? 'hsl(var(--trade-yes-soft) / 0.16)' 
-                : 'hsl(var(--trade-no-soft) / 0.16)'
+              backgroundColor: 'transparent',
+              border: `1px solid ${data.position === "YES" ? 'hsl(var(--trade-yes))' : 'hsl(var(--trade-no))'}`,
+              fontWeight: 600
             }}
           >
             {data.position}

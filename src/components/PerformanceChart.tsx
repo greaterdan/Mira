@@ -22,10 +22,10 @@ const mockChartData: ChartDataPoint[] = [
 ];
 
 const agents = [
-  { id: "GROK", name: "GROK", color: "#F5F7FB" },       // off-white
-  { id: "OPENAI", name: "OPENAI", color: "#8EE2A3" },   // muted green (accent-yes at 60%)
-  { id: "DEEPSEEK", name: "DEEPSEEK", color: "#7DA6FF" }, // muted blue (accent-neutral at 70%)
-  { id: "GEMINI", name: "GEMINI", color: "#F3B27C" },   // muted orange at 70%
+  { id: "GROK", name: "GROK", color: "#4EB5FF" },       // accent-info blue
+  { id: "OPENAI", name: "OPENAI", color: "#FF9CED" },   // soft magenta
+  { id: "DEEPSEEK", name: "DEEPSEEK", color: "#F4A24E" }, // orange
+  { id: "GEMINI", name: "GEMINI", color: "#9BE87E" },   // greenish
 ];
 
 export const PerformanceChart = () => {
@@ -107,7 +107,7 @@ export const PerformanceChart = () => {
       {viewMode === "chart" ? (
         <>
           {/* Chart Area */}
-          <div className="flex-1 p-4" style={{ background: 'linear-gradient(180deg, hsl(var(--bg-elevated)) 0%, hsl(var(--background)) 100%)' }}>
+          <div className="flex-1 p-4" style={{ background: 'linear-gradient(180deg, #090B11 0%, #050608 100%)' }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={mockChartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--grid-lines))" vertical={false} />
@@ -130,10 +130,10 @@ export const PerformanceChart = () => {
                 type="monotone"
                 dataKey={agent.id}
                 stroke={agent.color}
-                strokeWidth={selectedAgent === agent.id ? 2.5 : selectedAgent === null ? 1.5 : 1}
+                strokeWidth={selectedAgent === agent.id ? 2.5 : selectedAgent === null ? 2 : 1}
                 opacity={selectedAgent === agent.id || selectedAgent === null ? 1 : 0.2}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
               />
             ))}
           </LineChart>

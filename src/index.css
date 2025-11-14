@@ -8,60 +8,60 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Award-Winning Dark Trading Terminal - Clean & Readable */
+    /* MoneySharks-Inspired Dark Glossy Trading Terminal */
     
     /* BASE BACKGROUNDS */
-    --background: 217 20% 7%;        /* #111319 - main background */
-    --bg-elevated: 217 18% 11%;      /* #171B23 - panels, bubble interiors, chart */
-    --bg-card: 216 18% 15%;          /* #1D222C - agent cards, tooltips */
+    --background: 217 20% 2%;        /* #050608 - main background, deep black */
+    --bg-elevated: 217 25% 5%;       /* #080A10 - panels, bubble interiors */
+    --bg-card: 217 25% 7%;           /* #0C1018 - agent cards, hover states */
     
-    --card: 216 18% 15%;
-    --card-foreground: 220 18% 96%;
+    --card: 217 25% 5%;
+    --card-foreground: 0 0% 100%;
     
-    --popover: 216 18% 15%;
-    --popover-foreground: 220 18% 96%;
+    --popover: 217 25% 5%;
+    --popover-foreground: 0 0% 100%;
     
     /* TEXT HIERARCHY */
-    --foreground: 220 18% 96%;       /* #F5F7FB - text-primary, main labels */
-    --text-secondary: 220 12% 75%;   /* #B2B8C6 - sublabels, timestamps */
-    --text-muted: 220 8% 50%;        /* #6C7280 - hints, helper text */
+    --foreground: 0 0% 100%;         /* #FFFFFF - pure white, high contrast */
+    --text-secondary: 220 15% 82%;   /* #C6CBD9 - light gray labels */
+    --text-muted: 220 12% 53%;       /* #7C8190 - dimmed meta text */
     
-    --primary: 220 18% 96%;
-    --primary-foreground: 217 20% 7%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 217 20% 2%;
     
-    --secondary: 217 18% 11%;
-    --secondary-foreground: 220 12% 75%;
+    --secondary: 217 25% 5%;
+    --secondary-foreground: 220 15% 82%;
     
-    --muted: 217 18% 11%;
-    --muted-foreground: 220 8% 50%;
+    --muted: 217 25% 5%;
+    --muted-foreground: 220 12% 53%;
     
-    /* ACCENT COLORS - Disciplined Palette */
-    --accent: 152 54% 72%;           /* #8EE2A3 - accent-neutral (blue) for highlights */
-    --accent-foreground: 217 20% 7%;
+    /* ACCENT COLORS - MoneySharks Style */
+    --accent: 43 100% 64%;           /* #FFC94A - gold for key numbers */
+    --accent-foreground: 217 20% 2%;
     
-    --destructive: 0 72% 72%;        /* #F07C7C - accent-no (red) */
-    --destructive-foreground: 220 18% 96%;
+    --destructive: 352 100% 65%;     /* #FF4F64 - losses, negative */
+    --destructive-foreground: 0 0% 100%;
     
     /* BORDERS & STRUCTURE */
-    --border: 220 20% 22%;           /* #2A3140 - subtle borders */
-    --grid-lines: 220 24% 23%;       /* #242B37 - chart grid */
-    --input: 220 20% 22%;
-    --ring: 152 54% 72%;
+    --border: 217 20% 18%;           /* #262933 - subtle borders */
+    --grid-lines: 217 20% 17%;       /* #252935 - chart grid */
+    --input: 217 20% 18%;
+    --ring: 43 100% 64%;
     
     --radius: 0.125rem;
     
     /* TRADING ACCENT COLORS */
-    --trade-yes: 152 54% 72%;        /* #8EE2A3 - mint green, desaturated */
-    --trade-yes-soft: 152 54% 72%;   /* Same hue for soft version */
-    --trade-no: 0 72% 72%;           /* #F07C7C - warm red */
-    --trade-no-soft: 0 72% 72%;      /* Same hue for soft version */
-    --trade-neutral: 220 78% 72%;    /* #7DA6FF - soft muted blue */
-    --trade-neutral-soft: 220 78% 72%; /* Same hue for soft version */
+    --trade-yes: 152 75% 54%;        /* #30E68C - bright green, gains */
+    --trade-yes-soft: 152 75% 54%;   /* Same hue for soft version */
+    --trade-no: 352 100% 65%;        /* #FF4F64 - red, losses */
+    --trade-no-soft: 352 100% 65%;   /* Same hue for soft version */
+    --trade-neutral: 208 100% 65%;   /* #4EB5FF - info blue */
+    --trade-neutral-soft: 208 100% 65%; /* Same hue for soft version */
     
-    --terminal-accent: 152 54% 72%;
-    --terminal-red: 0 72% 72%;
-    --terminal-blue: 220 78% 72%;
-    --terminal-gray: 220 8% 50%;
+    --terminal-accent: 43 100% 64%;
+    --terminal-red: 352 100% 65%;
+    --terminal-blue: 208 100% 65%;
+    --terminal-gray: 220 12% 53%;
     
     /* SHADOWS */
     --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -155,33 +155,33 @@ All colors MUST be HSL.
   @keyframes pulse-glow-green {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 12px hsla(152, 54%, 72%, 0.4), 0 0 24px hsla(152, 54%, 72%, 0.16);
+      box-shadow: 0 0 8px hsla(152, 75%, 54%, 0.3), 0 0 16px hsla(152, 75%, 54%, 0.1);
     }
     50% {
       opacity: 1;
-      box-shadow: 0 0 18px hsla(152, 54%, 72%, 0.5), 0 0 32px hsla(152, 54%, 72%, 0.2);
+      box-shadow: 0 0 12px hsla(152, 75%, 54%, 0.4), 0 0 20px hsla(152, 75%, 54%, 0.15);
     }
   }
   
   @keyframes pulse-glow-red {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 12px hsla(0, 72%, 72%, 0.4), 0 0 24px hsla(0, 72%, 72%, 0.16);
+      box-shadow: 0 0 8px hsla(352, 100%, 65%, 0.3), 0 0 16px hsla(352, 100%, 65%, 0.1);
     }
     50% {
       opacity: 1;
-      box-shadow: 0 0 18px hsla(0, 72%, 72%, 0.5), 0 0 32px hsla(0, 72%, 72%, 0.2);
+      box-shadow: 0 0 12px hsla(352, 100%, 65%, 0.4), 0 0 20px hsla(352, 100%, 65%, 0.15);
     }
   }
   
   @keyframes pulse-glow-blue {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 12px hsla(220, 78%, 72%, 0.4), 0 0 24px hsla(220, 78%, 72%, 0.16);
+      box-shadow: 0 0 8px hsla(208, 100%, 65%, 0.3), 0 0 16px hsla(208, 100%, 65%, 0.1);
     }
     50% {
       opacity: 1;
-      box-shadow: 0 0 18px hsla(220, 78%, 72%, 0.5), 0 0 32px hsla(220, 78%, 72%, 0.2);
+      box-shadow: 0 0 12px hsla(208, 100%, 65%, 0.4), 0 0 20px hsla(208, 100%, 65%, 0.15);
     }
   }
   
@@ -211,14 +211,14 @@ All colors MUST be HSL.
   }
   
   .text-glow-green {
-    text-shadow: 0 0 8px hsla(152, 54%, 72%, 0.6), 0 0 16px hsla(152, 54%, 72%, 0.3);
+    text-shadow: 0 0 8px hsla(152, 75%, 54%, 0.5), 0 0 12px hsla(152, 75%, 54%, 0.25);
   }
   
   .text-glow-red {
-    text-shadow: 0 0 8px hsla(0, 72%, 72%, 0.6), 0 0 16px hsla(0, 72%, 72%, 0.3);
+    text-shadow: 0 0 8px hsla(352, 100%, 65%, 0.5), 0 0 12px hsla(352, 100%, 65%, 0.25);
   }
   
   .text-glow-blue {
-    text-shadow: 0 0 8px hsla(220, 78%, 72%, 0.6), 0 0 16px hsla(220, 78%, 72%, 0.3);
+    text-shadow: 0 0 8px hsla(208, 100%, 65%, 0.5), 0 0 12px hsla(208, 100%, 65%, 0.25);
   }
 }
