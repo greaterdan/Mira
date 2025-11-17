@@ -3,9 +3,23 @@ import { LoginButton } from "./LoginButton";
 import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
-import { Bot } from "lucide-react";
+import { Bot, BarChart3, Users } from "lucide-react";
 
-export const SystemStatusBar = ({ onToggleAgentBuilder }: { onToggleAgentBuilder?: () => void }) => {
+interface SystemStatusBarProps {
+  onToggleAgentBuilder?: () => void;
+  onTogglePerformance?: () => void;
+  onToggleSummary?: () => void;
+  isPerformanceOpen?: boolean;
+  isSummaryOpen?: boolean;
+}
+
+export const SystemStatusBar = ({ 
+  onToggleAgentBuilder, 
+  onTogglePerformance, 
+  onToggleSummary,
+  isPerformanceOpen = true,
+  isSummaryOpen = true
+}: SystemStatusBarProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [walletAddress, setWalletAddress] = useState<string | undefined>();
@@ -64,6 +78,34 @@ export const SystemStatusBar = ({ onToggleAgentBuilder }: { onToggleAgentBuilder
     <div className="h-11 bg-bg-elevated border-b border-border flex items-center justify-end gap-2 px-4 py-2">
       {isLoggedIn && custodialWallet && (
         <>
+          {/* Panel toggle buttons - icons only, close to Build Agent */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTogglePerformance}
+            className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+              isPerformanceOpen 
+                ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+                : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+            }`}
+            title="Performance Index"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleSummary}
+            className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+              isSummaryOpen 
+                ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+                : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+            }`}
+            title="Summary"
+          >
+            <Users className="w-3.5 h-3.5" />
+          </Button>
+          
           <Button
             variant="outline"
             size="sm"

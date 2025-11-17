@@ -152,6 +152,19 @@ All colors MUST be HSL.
     height: 100%;
     width: 100%;
     background-color: hsl(var(--background));
+    margin: 0;
+    padding: 0;
+  }
+
+  /* FORCE RESIZABLE PANELS TO BE EDGE-TO-EDGE - NO PADDING/MARGIN */
+  [data-panel] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  [data-panel-group] {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 
@@ -258,12 +271,18 @@ All colors MUST be HSL.
   }
 
   @keyframes bubble-orbit {
-    0%   { transform: translate3d(0px, 0px, 0) scale(1); }
-    20%  { transform: translate3d(8px, -12px, 0) scale(1.01); }
-    40%  { transform: translate3d(-10px, 6px, 0) scale(0.99); }
-    60%  { transform: translate3d(6px, 10px, 0) scale(1.01); }
-    80%  { transform: translate3d(-8px, -6px, 0) scale(0.99); }
-    100% { transform: translate3d(0px, 0px, 0) scale(1); }
+    0%   { transform: translate3d(0px, 0px, 0) rotate(0deg); }
+    25%  { transform: translate3d(15px, -20px, 0) rotate(90deg); }
+    50%  { transform: translate3d(-12px, 15px, 0) rotate(180deg); }
+    75%  { transform: translate3d(10px, 18px, 0) rotate(270deg); }
+    100% { transform: translate3d(0px, 0px, 0) rotate(360deg); }
+  }
+  
+  @keyframes bubble-float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    25% { transform: translate3d(12px, -15px, 0); }
+    50% { transform: translate3d(-10px, 12px, 0); }
+    75% { transform: translate3d(8px, 15px, 0); }
   }
 
   .banter-bubble-wrapper {

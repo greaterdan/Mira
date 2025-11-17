@@ -30,6 +30,7 @@ export const PredictionBubbleField: React.FC<Props> = ({
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const lastMousePosRef = useRef<{ x: number; y: number } | null>(null);
+  const measureFunctionRef = useRef<(() => void) | null>(null);
 
   useLayoutEffect(() => {
     let mounted = true;
@@ -39,20 +40,30 @@ export const PredictionBubbleField: React.FC<Props> = ({
     function measure() {
       if (!containerRef.current || !mounted) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
+      const width = Math.floor(rect.width);
+      const height = Math.floor(rect.height);
       
       // Only update if we have valid dimensions (at least 200px to avoid tiny initial sizes)
-      if (width >= 200 && height >= 200 && (width !== sizeRef.width || height !== sizeRef.height)) {
-        sizeRef.width = width;
-        sizeRef.height = height;
-        setSize({ width, height });
-        setIsSizeReady(true);
+      // Use exact pixel values and always update if different to catch panel resizes
+      if (width >= 200 && height >= 200) {
+        if (width !== sizeRef.width || height !== sizeRef.height) {
+          console.log(`📏 Container resized: ${sizeRef.width}x${sizeRef.height} → ${width}x${height}`);
+          sizeRef.width = width;
+          sizeRef.height = height;
+          setSize({ width, height });
+          setIsSizeReady(true);
+        }
       } else if (width < 200 || height < 200) {
         // Reset if size becomes too small
         setIsSizeReady(false);
       }
     }
+    
+    // Store measure function so we can call it externally
+    measureFunctionRef.current = measure;
+    
+    // Force immediate measurement
+    measure();
 
     // Initial measure - wait for container to be properly sized and DOM to be ready
     const initialTimeout = setTimeout(() => {
@@ -60,7 +71,7 @@ export const PredictionBubbleField: React.FC<Props> = ({
         measure();
         // Double-check after a short delay to ensure stable size
         measureTimeout = setTimeout(() => {
-          if (mounted) measure();
+      if (mounted) measure();
         }, 100);
       }
     }, 200);
@@ -75,14 +86,27 @@ export const PredictionBubbleField: React.FC<Props> = ({
         measureTimeout = null;
       }
       
-      // Debounce resize to prevent glitches
-      measureTimeout = setTimeout(() => {
-        if (mounted) measure();
-      }, 100);
+      // Measure immediately when panels resize - single check for performance
+      if (mounted) {
+        measure();
+      }
     });
 
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
+    }
+    
+    // Also observe parent container to catch panel size changes
+    const parentElement = containerRef.current?.parentElement;
+    let parentObserver: ResizeObserver | null = null;
+    if (parentElement) {
+      parentObserver = new ResizeObserver(() => {
+        if (mounted) {
+          // Simple immediate measure - no debounce for responsiveness
+          measure();
+        }
+      });
+      parentObserver.observe(parentElement);
     }
 
     window.addEventListener("resize", measure);
@@ -92,6 +116,9 @@ export const PredictionBubbleField: React.FC<Props> = ({
       clearTimeout(initialTimeout);
       if (measureTimeout) clearTimeout(measureTimeout);
       resizeObserver.disconnect();
+      if (parentObserver) {
+        parentObserver.disconnect();
+      }
       window.removeEventListener("resize", measure);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -103,20 +130,26 @@ export const PredictionBubbleField: React.FC<Props> = ({
     // Don't calculate layout if size is not ready (prevents glitch on refresh)
     // Require minimum valid dimensions to avoid calculating with tiny sizes
     if (!isSizeReady || size.width < 200 || size.height < 200 || markets.length === 0) {
+      console.log(`⚠️ Bubble layout skipped: isSizeReady=${isSizeReady}, size=${size.width}x${size.height}, markets=${markets.length}`);
       return [];
     }
-    // For "All Markets" - show as many as possible, otherwise limit to 200
-    const maxVisible = markets.length > 200 ? markets.length : 200;
+    
+    // Show ALL markets - no limit
+    const maxVisible = markets.length;
+    console.log(`🎯 Creating bubbles for ${markets.length} markets (maxVisible: ${maxVisible})`);
+    console.log(`📐 Container size: ${size.width}x${size.height} - USING FULL SPACE`);
     
     try {
-      return layoutRadialBubbleCloud(
+      const bubbles = layoutRadialBubbleCloud(
         markets.map((m, idx) => ({ id: m.id ?? String(idx), data: m })),
         size.width,
         size.height,
-        maxVisible // Show all markets if possible
+        maxVisible // Show ALL markets
       );
+      console.log(`✅ Bubble layout created ${bubbles.length} bubbles using FULL space ${size.width}x${size.height}`);
+      return bubbles;
     } catch (error) {
-      console.error('Error calculating bubble layout:', error);
+      console.error('❌ Error calculating bubble layout:', error);
       return [];
     }
   }, [markets, size.width, size.height, isSizeReady]);
@@ -177,65 +210,147 @@ export const PredictionBubbleField: React.FC<Props> = ({
     // NO INTERPOLATION on dragged bubble - it should follow mouse directly
     let finalX = newX;
     let finalY = newY;
-    const minGap = 1; // Minimum gap to prevent overlap
+    // CRITICAL: Account for visual extensions (borders, shadows, glows) - same as layout
+    const visualExtension = 20; // Account for borders, shadows, and glows extending beyond radius
+    const minGap = 15; // Visible gap between bubbles
+    const effectiveMinGap = minGap + (visualExtension * 2); // Add visual extension to both sides
     
-    // COLLISION PREVENTION: Check if new position would overlap, adjust if needed
-    for (const otherBubble of currentBubbles) {
-      if (otherBubble.id === draggedBubbleId) continue;
+    // COLLISION PREVENTION: Iteratively resolve all collisions
+    // Use multiple passes to ensure NO overlaps
+    const maxIterations = 20;
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let hasCollision = false;
       
-      const dx = finalX - otherBubble.x;
-      const dy = finalY - otherBubble.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const requiredDistance = draggedBubble.radius + otherBubble.radius + minGap;
-      
-      if (distance < requiredDistance && distance > 0) {
-        // Calculate how much we need to move the dragged bubble away
-        const pushAngle = Math.atan2(dy, dx);
+      for (const otherBubble of currentBubbles) {
+        if (otherBubble.id === draggedBubbleId) continue;
         
-        // Move dragged bubble away from the other bubble (direct, no interpolation)
-        finalX = otherBubble.x + Math.cos(pushAngle) * requiredDistance;
-        finalY = otherBubble.y + Math.sin(pushAngle) * requiredDistance;
+        const dx = finalX - otherBubble.x;
+        const dy = finalY - otherBubble.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const requiredDistance = draggedBubble.radius + otherBubble.radius + effectiveMinGap;
+        
+        if (distance < requiredDistance && distance > 0.001) {
+          // Collision detected - push dragged bubble away
+          const pushAngle = Math.atan2(dy, dx);
+          const overlap = requiredDistance - distance;
+          
+          // Move dragged bubble away from the other bubble
+          finalX = otherBubble.x + Math.cos(pushAngle) * requiredDistance;
+          finalY = otherBubble.y + Math.sin(pushAngle) * requiredDistance;
+          hasCollision = true;
+        }
       }
+      
+      if (!hasCollision) break;
     }
     
     // Clamp final position to container bounds
-    const clampedX = Math.max(draggedBubble.radius, Math.min(size.width - draggedBubble.radius, finalX));
-    const clampedY = Math.max(draggedBubble.radius, Math.min(size.height - draggedBubble.radius, finalY));
+    const clampedX = Math.max(draggedBubble.radius + effectiveMinGap, Math.min(size.width - draggedBubble.radius - effectiveMinGap, finalX));
+    const clampedY = Math.max(draggedBubble.radius + effectiveMinGap, Math.min(size.height - draggedBubble.radius - effectiveMinGap, finalY));
     
-    // COLLISION DETECTION: Push other bubbles away smoothly when dragged bubble gets close
+    // COLLISION DETECTION: Push other bubbles away to prevent ANY overlap
     const pushedBubbles: Record<string, { x: number; y: number }> = {};
-    const pushStrength = 0.7; // Strong push to prevent overlap
+    const pushStrength = 1.0; // Full push to prevent overlap - no smoothing during overlap
     
-    currentBubbles.forEach(otherBubble => {
-      if (otherBubble.id === draggedBubbleId) return;
+    // Use iterative relaxation to push all affected bubbles
+    for (let pass = 0; pass < 10; pass++) {
+      let movedAny = false;
       
-      const dx = clampedX - otherBubble.x;
-      const dy = clampedY - otherBubble.y;
+      currentBubbles.forEach(otherBubble => {
+        if (otherBubble.id === draggedBubbleId) return;
+        
+        // Check collision with dragged bubble
+        const currentPos = pushedBubbles[otherBubble.id] || { x: otherBubble.x, y: otherBubble.y };
+        const dx = clampedX - currentPos.x;
+        const dy = clampedY - currentPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const requiredDistance = draggedBubble.radius + otherBubble.radius + effectiveMinGap;
+        
+        if (distance < requiredDistance && distance > 0.001) {
+          const pushAngle = Math.atan2(dy, dx);
+          const overlap = requiredDistance - distance;
+          const pushDistance = overlap * pushStrength;
+          
+          // Calculate target position - push away from dragged bubble
+          let targetX = currentPos.x - Math.cos(pushAngle) * (pushDistance + 1);
+          let targetY = currentPos.y - Math.sin(pushAngle) * (pushDistance + 1);
+          
+          // Also check for collisions with other pushed bubbles
+          for (const [otherId, otherPos] of Object.entries(pushedBubbles)) {
+            if (otherId === otherBubble.id || otherId === draggedBubbleId) continue;
+            const otherB = currentBubbles.find(b => b.id === otherId);
+            if (!otherB) continue;
+            
+            const otherDx = targetX - otherPos.x;
+            const otherDy = targetY - otherPos.y;
+            const otherDistance = Math.sqrt(otherDx * otherDx + otherDy * otherDy);
+            const otherRequiredDistance = otherBubble.radius + otherB.radius + effectiveMinGap;
+            
+            if (otherDistance < otherRequiredDistance && otherDistance > 0.001) {
+              const otherAngle = Math.atan2(otherDy, otherDx);
+              const otherOverlap = otherRequiredDistance - otherDistance;
+              targetX = otherPos.x + Math.cos(otherAngle) * (otherRequiredDistance + 1);
+              targetY = otherPos.y + Math.sin(otherAngle) * (otherRequiredDistance + 1);
+              movedAny = true;
+            }
+          }
+          
+          const clampedPushX = Math.max(otherBubble.radius + effectiveMinGap, Math.min(size.width - otherBubble.radius - effectiveMinGap, targetX));
+          const clampedPushY = Math.max(otherBubble.radius + effectiveMinGap, Math.min(size.height - otherBubble.radius - effectiveMinGap, targetY));
+          
+          if (clampedPushX !== currentPos.x || clampedPushY !== currentPos.y) {
+            pushedBubbles[otherBubble.id] = { x: clampedPushX, y: clampedPushY };
+            movedAny = true;
+          }
+        }
+      });
+      
+      if (!movedAny) break;
+    }
+    
+    // Final pass: ensure NO overlaps remain
+    for (const [bubbleId, pos] of Object.entries(pushedBubbles)) {
+      const bubble = currentBubbles.find(b => b.id === bubbleId);
+      if (!bubble) continue;
+      
+      // Check against dragged bubble
+      const dx = clampedX - pos.x;
+      const dy = clampedY - pos.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const requiredDistance = draggedBubble.radius + otherBubble.radius + minGap;
+      const requiredDistance = draggedBubble.radius + bubble.radius + effectiveMinGap;
       
-      if (distance < requiredDistance && distance > 0) {
-        const pushAngle = Math.atan2(dy, dx);
-        const overlap = requiredDistance - distance;
-        const pushDistance = overlap * pushStrength; // Push away to prevent overlap
+      if (distance < requiredDistance && distance > 0.001) {
+        const angle = Math.atan2(dy, dx);
+        pos.x = clampedX - Math.cos(angle) * requiredDistance;
+        pos.y = clampedY - Math.sin(angle) * requiredDistance;
         
-        const currentPos = bubblePositions[otherBubble.id] || { x: otherBubble.x, y: otherBubble.y };
-        
-        // Calculate target position
-        const targetX = otherBubble.x - Math.cos(pushAngle) * pushDistance;
-        const targetY = otherBubble.y - Math.sin(pushAngle) * pushDistance;
-        
-        // Smooth interpolation from current position to target (only for pushed bubbles)
-        const smoothingFactor = 0.3;
-        const smoothX = currentPos.x + (targetX - currentPos.x) * smoothingFactor;
-        const smoothY = currentPos.y + (targetY - currentPos.y) * smoothingFactor;
-        
-        const clampedPushX = Math.max(otherBubble.radius, Math.min(size.width - otherBubble.radius, smoothX));
-        const clampedPushY = Math.max(otherBubble.radius, Math.min(size.height - otherBubble.radius, smoothY));
-        
-        pushedBubbles[otherBubble.id] = { x: clampedPushX, y: clampedPushY };
+        // Clamp again
+        pos.x = Math.max(bubble.radius + effectiveMinGap, Math.min(size.width - bubble.radius - effectiveMinGap, pos.x));
+        pos.y = Math.max(bubble.radius + effectiveMinGap, Math.min(size.height - bubble.radius - effectiveMinGap, pos.y));
       }
-    });
+      
+      // Check against other pushed bubbles
+      for (const [otherId, otherPos] of Object.entries(pushedBubbles)) {
+        if (otherId === bubbleId) continue;
+        const otherB = currentBubbles.find(b => b.id === otherId);
+        if (!otherB) continue;
+        
+        const otherDx = pos.x - otherPos.x;
+        const otherDy = pos.y - otherPos.y;
+        const otherDistance = Math.sqrt(otherDx * otherDx + otherDy * otherDy);
+        const otherRequiredDistance = bubble.radius + otherB.radius + effectiveMinGap;
+        
+        if (otherDistance < otherRequiredDistance && otherDistance > 0.001) {
+          const otherAngle = Math.atan2(otherDy, otherDx);
+          pos.x = otherPos.x + Math.cos(otherAngle) * otherRequiredDistance;
+          pos.y = otherPos.y + Math.sin(otherAngle) * otherRequiredDistance;
+          
+          // Clamp again
+          pos.x = Math.max(bubble.radius + effectiveMinGap, Math.min(size.width - bubble.radius - effectiveMinGap, pos.x));
+          pos.y = Math.max(bubble.radius + effectiveMinGap, Math.min(size.height - bubble.radius - effectiveMinGap, pos.y));
+        }
+      }
+    }
     
     // Update positions: dragged bubble moves immediately, others push smoothly
     setBubblePositions(prev => ({
@@ -265,6 +380,11 @@ export const PredictionBubbleField: React.FC<Props> = ({
         overflow: 'visible',
         minWidth: '100%',
         minHeight: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
       }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -291,10 +411,12 @@ export const PredictionBubbleField: React.FC<Props> = ({
               top: bubble.y - bubble.radius,
               width: bubble.radius * 2,
               height: bubble.radius * 2,
-              animation: isDragging 
-                ? 'none' 
-                : `bubble-orbit ${30 + (bubble.index % 8) * 4}s ease-in-out infinite`,
-              animationDelay: isDragging ? '0s' : `${(bubble.index % 30) * 0.5}s`,
+              // Floating animation - smooth orbit like banterbubbles
+              animationName: isDragging ? 'none' : 'bubble-float',
+              animationDuration: isDragging ? '0s' : `${20 + (bubble.index % 10) * 3}s`,
+              animationTimingFunction: isDragging ? 'ease' : 'ease-in-out',
+              animationIterationCount: isDragging ? 0 : 'infinite',
+              animationDelay: isDragging ? '0s' : `${(bubble.index % 20) * 0.3}s`,
               cursor: isDragging ? 'grabbing' : 'grab',
               zIndex: isDragging ? 1000 : isHighlighted ? 100 : 1,
               transition: isDragging && bubble.id === draggedBubbleId

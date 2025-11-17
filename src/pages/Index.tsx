@@ -11,9 +11,9 @@ import { AgentBuilder } from "@/components/AgentBuilder";
 import { getOrCreateWallet } from "@/lib/wallet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { fetchPolymarketMarkets, fetchFeaturedMarkets, transformPolymarketToPrediction, mapPolymarketCategory, fetchMarketsByCategory } from "@/lib/polymarketApi";
+// All market fetching is now done server-side via /api/predictions
 
 interface Agent {
   id: string;
@@ -34,63 +34,7 @@ const mockAgents: Agent[] = [
   { id: "qwen", name: "QWEN 2.5", emoji: "🤖", isActive: false, pnl: 7.9, openMarkets: 219, lastTrade: "NO on Trump 2028 @ $0.34" },
 ];
 
-const mockPredictions: PredictionNodeData[] = [
-  {
-    id: "1",
-    question: "Will Thunderbolts be the top grossing movie of 2025?",
-    probability: 7,
-    position: "NO",
-    price: 0.004,
-    change: -2.5,
-    agentName: "GEMINI 2.5",
-    agentEmoji: "♊",
-    reasoning: "Historical patterns in superhero films show market saturation. Competition from other major franchises and quality concerns suggest limited box office potential.",
-  },
-  {
-    id: "2",
-    question: "Will Trump win the 2024 election?",
-    probability: 67,
-    position: "YES",
-    price: 0.67,
-    change: 3.2,
-    agentName: "GROK 4",
-    agentEmoji: "🔥",
-    reasoning: "Current polling data and swing state dynamics indicate favorable conditions. Economic indicators and campaign momentum support moderate-to-high probability.",
-  },
-  {
-    id: "3",
-    question: "Will ETH close above $3,500 this week?",
-    probability: 72,
-    position: "YES",
-    price: 0.72,
-    change: 5.8,
-    agentName: "DEEPSEEK V3",
-    agentEmoji: "🔮",
-    reasoning: "Strong bullish signals in market momentum. On-chain metrics show increasing network activity and institutional adoption patterns.",
-  },
-  {
-    id: "4",
-    question: "Will SBF get more than 20 years in prison?",
-    probability: 88,
-    position: "YES",
-    price: 0.88,
-    change: 1.2,
-    agentName: "GEMINI 2.5",
-    agentEmoji: "♊",
-    reasoning: "Legal precedent for financial fraud cases of this magnitude strongly suggests lengthy sentence. Federal guidelines support assessment.",
-  },
-  {
-    id: "5",
-    question: "Will AI surpass human intelligence by 2030?",
-    probability: 45,
-    position: "NO",
-    price: 0.55,
-    change: -1.8,
-    agentName: "GPT-5",
-    agentEmoji: "✨",
-    reasoning: "While AI capabilities advance rapidly, achieving AGI that surpasses human intelligence faces significant technical hurdles unlikely resolved in this timeframe.",
-  },
-];
+// Mock predictions removed - all data comes from server
 
 const Index = () => {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
@@ -104,110 +48,100 @@ const Index = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [selectedCategory, setSelectedCategory] = useState<string>("All Markets");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [leftPanelSize, setLeftPanelSize] = useState(33);
-  const [rightPanelSize, setRightPanelSize] = useState(33);
-  const [predictions, setPredictions] = useState<PredictionNodeData[]>(mockPredictions);
+  const [predictions, setPredictions] = useState<PredictionNodeData[]>([]);
   const [loadingMarkets, setLoadingMarkets] = useState(false);
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [custodialWallet, setCustodialWallet] = useState<{ publicKey: string; privateKey: string } | null>(null);
+  // Panel visibility state - both open by default
+  const [isPerformanceOpen, setIsPerformanceOpen] = useState(true);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
+  // Store saved panel sizes to restore when reopened
+  // Load from localStorage on mount, default to 30/40/30 (dashboard gets most space)
+  // Initialize all panel sizes together to ensure they add up to 100%
+  const getInitialPanelSizes = () => {
+    const savedLeft = localStorage.getItem('savedLeftPanelSize');
+    const savedRight = localStorage.getItem('savedRightPanelSize');
+    let left = savedLeft ? parseFloat(savedLeft) : 30;
+    let right = savedRight ? parseFloat(savedRight) : 30;
+    
+    // Validate: if saved values don't make sense, reset to defaults (30/40/30)
+    const middle = 100 - left - right;
+    if (left < 15 || left > 50 || right < 15 || right > 50 || middle < 30 || middle > 70) {
+      // Reset to default: 30/40/30 (dashboard gets most space)
+      left = 30;
+      right = 30;
+      localStorage.setItem('savedLeftPanelSize', '30');
+      localStorage.setItem('savedRightPanelSize', '30');
+    }
+    
+    return { left, right, middle: 100 - left - right };
+  };
+  
+  const initialSizes = getInitialPanelSizes();
+  const [savedLeftPanelSize, setSavedLeftPanelSize] = useState(initialSizes.left);
+  const [savedRightPanelSize, setSavedRightPanelSize] = useState(initialSizes.right);
+  // Current panel sizes - initialize from saved values
+  const [leftPanelSize, setLeftPanelSize] = useState(initialSizes.left);
+  const [rightPanelSize, setRightPanelSize] = useState(initialSizes.right);
+  // Middle panel size - dynamically calculated based on side panels
+  const [middlePanelSize, setMiddlePanelSize] = useState(initialSizes.middle);
 
-  // Fetch markets from Polymarket API
+  // Clear any conflicting localStorage from autoSaveId on mount
   useEffect(() => {
-    const loadMarkets = async () => {
-      console.log('🚀 Loading markets for category:', selectedCategory);
+    // Clear the autoSaveId localStorage that might have bad values
+    localStorage.removeItem('react-resizable-panels:panel-layout');
+  }, []);
+
+  // Persist saved panel sizes to localStorage
+  useEffect(() => {
+    localStorage.setItem('savedLeftPanelSize', savedLeftPanelSize.toString());
+  }, [savedLeftPanelSize]);
+
+  useEffect(() => {
+    localStorage.setItem('savedRightPanelSize', savedRightPanelSize.toString());
+  }, [savedRightPanelSize]);
+
+  // Fetch predictions from server (all processing is server-side)
+  useEffect(() => {
+    const loadPredictions = async () => {
+      console.log('🚀 Loading predictions for category:', selectedCategory);
       setLoadingMarkets(true);
       try {
-        let markets: any[] = [];
-        
-        // Determine which markets to fetch based on category
-        if (selectedCategory === "All Markets") {
-          // Fetch ALL markets - NO FILTERING for "All Markets"
-          console.log('📡 Fetching ALL markets (no filtering)...');
-          const response = await fetchPolymarketMarkets(2000, undefined, undefined, true); // Fetch ALL ACTIVE markets
-          markets = response.markets || response.data || [];
-          console.log(`📊 Received ${markets.length} markets from API - showing ALL of them`);
-          
-          // NO FILTERING - show everything that can be transformed
-        } else if (selectedCategory === "Trending" || selectedCategory === "Breaking" || selectedCategory === "New") {
-          // Fetch featured/trending markets for special categories
-          console.log('📡 Fetching featured markets...');
-          markets = await fetchFeaturedMarkets();
-          console.log(`📊 Received ${markets.length} featured markets`);
-        } else {
-          // Fetch by specific category
-          console.log(`📡 Fetching markets for category: ${selectedCategory}`);
-          markets = await fetchMarketsByCategory(selectedCategory);
-          console.log(`📊 Received ${markets.length} markets for category`);
+        // Call server endpoint - server handles ALL fetching, filtering, and transformation
+        // Request ALL markets - no limit
+        const response = await fetch(`http://localhost:3002/api/predictions?category=${encodeURIComponent(selectedCategory)}&limit=100000`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
 
-        console.log('🔄 Transforming markets to predictions...');
-        console.log(`📦 Starting with ${markets.length} markets to transform`);
+        const data = await response.json();
         
-        // Transform Polymarket markets to PredictionNodeData
-        const transformedPredictions: PredictionNodeData[] = [];
-        let transformSuccessCount = 0;
-        let transformFailCount = 0;
-        
-        // Use ALL markets - transform EVERYTHING
-        for (let index = 0; index < markets.length; index++) {
-          const market = markets[index];
-          // Distribute markets across agents
-          const agentIndex = index % mockAgents.length;
-          const agent = mockAgents[agentIndex];
-          
-          const prediction = transformPolymarketToPrediction(market, agent.name);
-          if (prediction) {
-            transformSuccessCount++;
-            transformedPredictions.push(prediction);
-          } else {
-            transformFailCount++;
-            // Log first few failures to debug
-            if (transformFailCount <= 10) {
-              console.warn(`⚠️ Failed to transform market ${index + 1}:`, {
-                question: market.question || 'NO QUESTION',
-                hasTokens: !!market.tokens,
-                tokenCount: market.tokens?.length || 0,
-                active: market.active,
-                closed: market.closed,
-                archived: market.archived
-              });
-            }
-          }
-          
-          // Log progress every 100 markets
-          if ((index + 1) % 100 === 0) {
-            console.log(`📊 Progress: ${index + 1}/${markets.length} processed, ${transformSuccessCount} succeeded`);
-          }
-        }
-        
-        console.log(`✅ Transformation complete: ${transformSuccessCount} succeeded, ${transformFailCount} failed out of ${markets.length} total`);
-
-        // Use transformed predictions if available, otherwise fall back to mock
-        if (transformedPredictions.length > 0) {
-          console.log(`✅ Successfully loaded ${transformedPredictions.length} predictions from Polymarket API`);
-          setPredictions(transformedPredictions);
+        if (data.predictions && Array.isArray(data.predictions)) {
+          console.log(`✅ Loaded ${data.predictions.length} predictions from server`);
+          console.log(`📊 Server stats: ${data.totalFetched} fetched, ${data.totalTransformed} transformed`);
+          setPredictions(data.predictions);
         } else {
-          // Fallback to mock data if API fails or returns no results
-          console.warn('⚠️ No markets found from API, using mock data');
-          console.warn('⚠️ This usually means:');
-          console.warn('   1. API endpoints are incorrect');
-          console.warn('   2. CORS issues (API blocked by browser)');
-          console.warn('   3. API requires authentication');
-          console.warn('   4. API response format is different');
-          setPredictions(mockPredictions);
+          console.error('❌ Invalid response format from server');
+          setPredictions([]);
         }
       } catch (error) {
-        console.error('❌ Error loading markets:', error);
-        console.error('Falling back to mock data');
-        // Fallback to mock data on error
-        setPredictions(mockPredictions);
+        console.error('❌ Error loading predictions:', error);
+        console.error('❌ Make sure server is running: npm run server');
+        setPredictions([]);
       } finally {
         setLoadingMarkets(false);
-        console.log('✅ Market loading complete');
+        console.log('✅ Prediction loading complete');
       }
     };
 
-    loadMarkets();
+    loadPredictions();
   }, [selectedCategory]);
 
   // Simulate AI trading activity
@@ -262,13 +196,50 @@ const Index = () => {
 
   // Handle pan start
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left mouse button
+    // Don't start dragging if clicking on interactive elements or resizing panels
+    if (e.button === 0 && !isResizingRef.current) {
+      // Check if clicking on a button, link, or input
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a, input, select, textarea')) {
+        return;
+      }
       setIsDragging(true);
       setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+      e.preventDefault();
     }
   };
 
-  // Handle pan move
+  // Global mouse move handler for smooth dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setPanPosition({
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        });
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, dragStart]);
+
+  // Handle pan move (local handler for immediate feedback)
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
       setPanPosition({
@@ -285,7 +256,7 @@ const Index = () => {
 
   // Handle mouse leave
   const handleMouseLeave = () => {
-    setIsDragging(false);
+    // Don't stop dragging on mouse leave - use global handlers instead
   };
 
   const marketCategories = [
@@ -304,50 +275,27 @@ const Index = () => {
     "Elections"
   ];
 
-  const getCategoryForPrediction = (prediction: PredictionNodeData) => {
-    // Try to get category from the prediction data if available
-    // Otherwise use question-based categorization
-    const q = prediction.question.toLowerCase();
-    if (q.includes("trump") || q.includes("election")) return "Elections";
-    if (q.includes("sbf") || q.includes("prison")) return "Politics";
-    if (q.includes("movie") || q.includes("thunderbolts")) return "Breaking";
-    if (q.includes("eth") || q.includes("crypto") || q.includes("bitcoin")) return "Crypto";
-    if (q.includes("ai") || q.includes("intelligence")) return "Tech";
-    if (q.includes("geopolitic")) return "Geopolitics";
-    if (q.includes("earnings") || q.includes("revenue")) return "Earnings";
-    if (q.includes("finance") || q.includes("stock")) return "Finance";
-    if (q.includes("sport")) return "Sports";
-    return "World";
-  };
-
-  const filteredPredictions = predictions.filter(p => {
-    // Don't filter by agent - show all bubbles, just highlight matching ones
-    // const agentMatch = selectedAgent 
-    //   ? p.agentName === mockAgents.find(a => a.id === selectedAgent)?.name
-    //   : true;
+  // Filter predictions by search query only (category filtering is done server-side)
+  const filteredPredictions = useMemo(() => {
+    if (searchQuery.trim() === "") {
+      return predictions; // No search query, return all
+    }
     
-    const categoryMatch = selectedCategory === "All Markets"
-      ? true
-      : getCategoryForPrediction(p) === selectedCategory;
+    const filtered = predictions.filter(p => {
+      return p.question.toLowerCase().includes(searchQuery.toLowerCase().trim());
+    });
     
-    const searchMatch = searchQuery.trim() === ""
-      ? true
-      : p.question.toLowerCase().includes(searchQuery.toLowerCase().trim());
-    
-    return categoryMatch && searchMatch; // Removed agentMatch filter
-  });
+    console.log(`🔍 Search filter: ${predictions.length} total → ${filtered.length} after search: "${searchQuery}"`);
+    return filtered;
+  }, [predictions, searchQuery]);
 
   // For "All Markets" - show ALL predictions, no limit
-  // For other categories - limit for performance
+  // For other categories - show ALL too, no limit
   const limitedPredictions = useMemo(() => {
-    if (selectedCategory === "All Markets") {
-      // Show ALL markets - no limit
-      return filteredPredictions;
-    }
-    // Sort by probability (largest first) and limit to 500 for other categories
-    const sorted = [...filteredPredictions].sort((a, b) => b.probability - a.probability);
-    return sorted.slice(0, 500);
-  }, [filteredPredictions, selectedCategory]);
+    // Show ALL filtered predictions - no limit
+    console.log(`🎯 Limited predictions: ${filteredPredictions.length} (no limit applied)`);
+    return filteredPredictions;
+  }, [filteredPredictions]);
 
 
   // Get custodial wallet from localStorage when logged in
@@ -372,34 +320,205 @@ const Index = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle panel toggles - preserve sizes when closing/opening
+  // CRITICAL: When one panel closes, the other panel MUST keep its exact size
+  const leftPanelRef = useRef<{ id: string; size: number }>({ id: 'left', size: 30 });
+  const rightPanelRef = useRef<{ id: string; size: number }>({ id: 'right', size: 30 });
+  
+  // Track if we're currently resizing to prevent glitching
+  const isResizingRef = useRef(false);
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Calculate middle panel size based on which panels are open
+  // Update immediately when panels are toggled, debounce only during resize
+  useEffect(() => {
+    // Always calculate the correct size
+    let newMiddleSize: number;
+    if (isPerformanceOpen && isSummaryOpen) {
+      // Both panels open - middle takes remaining space
+      newMiddleSize = 100 - leftPanelSize - rightPanelSize;
+    } else if (isPerformanceOpen && !isSummaryOpen) {
+      // Only Performance open - middle takes FULL SPACE minus Performance
+      newMiddleSize = 100 - leftPanelSize;
+    } else if (!isPerformanceOpen && isSummaryOpen) {
+      // Only Summary open - middle takes FULL SPACE minus Summary
+      newMiddleSize = 100 - rightPanelSize;
+    } else {
+      // Both closed - middle takes 100% FULL SCREEN!
+      newMiddleSize = 100;
+    }
+    
+    const finalSize = Math.max(20, Math.min(100, newMiddleSize));
+    
+    // If we're actively resizing, debounce the update
+    if (isResizingRef.current) {
+      // Clear any pending timeout
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      // Debounce the update during resize
+      resizeTimeoutRef.current = setTimeout(() => {
+        setMiddlePanelSize(finalSize);
+      }, 50);
+    } else {
+      // Update immediately when panels are toggled (not during resize)
+      setMiddlePanelSize(finalSize);
+    }
+    
+    return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, [isPerformanceOpen, isSummaryOpen, leftPanelSize, rightPanelSize]);
+
+
+  const handleTogglePerformance = () => {
+    const newState = !isPerformanceOpen;
+    setIsPerformanceOpen(newState);
+    if (newState) {
+      // Opening Performance - restore saved size
+      setLeftPanelSize(savedLeftPanelSize);
+      leftPanelRef.current.size = savedLeftPanelSize;
+      // Immediately update middle panel size
+      const newMiddle = isSummaryOpen 
+        ? 100 - savedLeftPanelSize - rightPanelSize
+        : 100 - savedLeftPanelSize;
+      setMiddlePanelSize(Math.max(20, Math.min(100, newMiddle)));
+    } else {
+      // Closing Performance - collapse to 0
+      setLeftPanelSize(0);
+      leftPanelRef.current.size = 0;
+      // Immediately expand middle panel to full space minus summary
+      const newMiddle = isSummaryOpen 
+        ? 100 - rightPanelSize
+        : 100;
+      setMiddlePanelSize(Math.max(20, Math.min(100, newMiddle)));
+    }
+  };
+
+  const handleToggleSummary = () => {
+    const newState = !isSummaryOpen;
+    setIsSummaryOpen(newState);
+    if (newState) {
+      // Opening Summary - restore saved size
+      setRightPanelSize(savedRightPanelSize);
+      rightPanelRef.current.size = savedRightPanelSize;
+      // Immediately update middle panel size
+      const newMiddle = isPerformanceOpen 
+        ? 100 - leftPanelSize - savedRightPanelSize
+        : 100 - savedRightPanelSize;
+      setMiddlePanelSize(Math.max(20, Math.min(100, newMiddle)));
+    } else {
+      // Closing Summary - collapse to 0
+      setRightPanelSize(0);
+      rightPanelRef.current.size = 0;
+      // Immediately expand middle panel to full space minus performance
+      const newMiddle = isPerformanceOpen 
+        ? 100 - leftPanelSize
+        : 100;
+      setMiddlePanelSize(Math.max(20, Math.min(100, newMiddle)));
+    }
+  };
+
   return (
     <div className="h-screen w-full bg-background flex flex-col overflow-hidden">
       {/* Top Status Bar */}
-      <SystemStatusBar onToggleAgentBuilder={() => setShowAgentBuilder(!showAgentBuilder)} />
+      <SystemStatusBar 
+        onToggleAgentBuilder={() => setShowAgentBuilder(!showAgentBuilder)}
+        onTogglePerformance={handleTogglePerformance}
+        onToggleSummary={handleToggleSummary}
+        isPerformanceOpen={isPerformanceOpen}
+        isSummaryOpen={isSummaryOpen}
+      />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <div className="flex-1 flex overflow-hidden w-full" style={{ margin: 0, padding: 0 }}>
+        <ResizablePanelGroup 
+          key={`group-${isPerformanceOpen}-${isSummaryOpen}`}
+          direction="horizontal" 
+          className="flex-1 w-full"
+          style={{ margin: 0, padding: 0, width: '100%' }}
+        >
           {/* LEFT: Performance Chart */}
           <ResizablePanel 
-            size={leftPanelSize}
-            onResize={setLeftPanelSize}
-            minSize={5} 
+            defaultSize={isPerformanceOpen ? savedLeftPanelSize : 0}
+            onResize={(size) => {
+              // Mark as resizing
+              isResizingRef.current = true;
+              
+              // Only allow resizing when panel is open
+              if (isPerformanceOpen && size >= 10) {
+                setLeftPanelSize(size);
+                // Save the size so it restores to the same size when reopened
+                setSavedLeftPanelSize(size);
+                leftPanelRef.current.size = size; // Update ref
+              }
+              
+              // Clear resizing flag after a short delay
+              if (resizeTimeoutRef.current) {
+                clearTimeout(resizeTimeoutRef.current);
+              }
+              resizeTimeoutRef.current = setTimeout(() => {
+                isResizingRef.current = false;
+              }, 100);
+            }}
+            minSize={0} 
             maxSize={60} 
             collapsible={true}
-            collapsedSize={5}
-            className="border-r border-border overflow-hidden relative"
+            collapsedSize={0}
+            className={`${isPerformanceOpen ? 'border-r border-border' : ''} overflow-hidden relative`}
           >
-            {leftPanelSize >= 10 && <PerformanceChart />}
+            {isPerformanceOpen && leftPanelSize >= 10 && <PerformanceChart />}
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
+          {/* Only show handle when Performance panel is open */}
+          {isPerformanceOpen && <ResizableHandle withHandle />}
 
-          {/* MIDDLE: Prediction Nodes / Dashboard */}
-          <ResizablePanel defaultSize={34} minSize={20} maxSize={60} className="relative border-r border-border flex flex-col bg-background" style={{ position: 'relative', overflow: 'hidden', zIndex: zoomLevel > 1 ? 10 : 1 }}>
-          {/* Market Category Dropdown */}
-          <div className="px-4 border-b border-border flex flex-col bg-bg-elevated">
-            <div className="h-10 flex items-center justify-between">
+          {/* MIDDLE: Prediction Nodes / Dashboard - EXPANDS TO FULL SPACE */}
+          {/* Middle panel dynamically expands to fill available space */}
+          <ResizablePanel 
+            key={`middle-${isPerformanceOpen}-${isSummaryOpen}-${middlePanelSize}`}
+            defaultSize={middlePanelSize}
+            onResize={(size) => {
+              // Mark as resizing
+              isResizingRef.current = true;
+              
+              // Only allow manual resizing when both panels are open
+              if (isPerformanceOpen && isSummaryOpen) {
+                setMiddlePanelSize(size);
+                // When middle panel is resized, adjust side panels proportionally
+                const availableSpace = 100 - size;
+                const totalSidePanels = leftPanelSize + rightPanelSize;
+                if (totalSidePanels > 0) {
+                  const leftRatio = leftPanelSize / totalSidePanels;
+                  const rightRatio = rightPanelSize / totalSidePanels;
+                  const newLeftSize = availableSpace * leftRatio;
+                  const newRightSize = availableSpace * rightRatio;
+                  setLeftPanelSize(newLeftSize);
+                  setRightPanelSize(newRightSize);
+                  // Save the sizes so they restore to the same size when reopened
+                  setSavedLeftPanelSize(newLeftSize);
+                  setSavedRightPanelSize(newRightSize);
+                }
+              }
+              
+              // Clear resizing flag after a short delay
+              if (resizeTimeoutRef.current) {
+                clearTimeout(resizeTimeoutRef.current);
+              }
+              resizeTimeoutRef.current = setTimeout(() => {
+                isResizingRef.current = false;
+              }, 100);
+            }}
+            minSize={20} 
+            maxSize={100}
+            className={`relative ${isSummaryOpen ? 'border-r border-border' : ''} flex flex-col bg-background`}
+            style={{ position: 'relative', overflow: 'hidden', zIndex: zoomLevel > 1 ? 10 : 1, padding: 0, margin: 0, width: '100%' }}
+          >
+          {/* Market Category Dropdown - EDGE TO EDGE - NO MARGINS OR PADDING ON CONTAINER */}
+          <div className="border-b border-border flex flex-col bg-bg-elevated" style={{ width: '100%', margin: 0, padding: 0, marginLeft: 0, marginRight: 0 }}>
+            <div className="h-10 flex items-center justify-between px-4">
               <span className="text-xs text-terminal-accent font-mono leading-none flex items-center">
                 &gt; DASHBOARD
                 {loadingMarkets && <span className="ml-2 text-[10px] text-muted-foreground">(Loading markets...)</span>}
@@ -492,19 +611,50 @@ const Index = () => {
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleShowTrades(selectedPrediction)}
-                    className="px-3 py-1.5 text-[11px] font-semibold bg-terminal-accent text-black rounded hover:bg-terminal-accent/90 transition-colors whitespace-nowrap flex-shrink-0"
-                    style={{ fontWeight: 600 }}
-                  >
-                    See Trades
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Polymarket Link Button - Always visible */}
+                    <a
+                      href={
+                        selectedPrediction.marketSlug
+                          ? `https://polymarket.com/event/${selectedPrediction.marketSlug}`
+                          : selectedPrediction.conditionId
+                          ? `https://polymarket.com/condition/${selectedPrediction.conditionId}`
+                          : `https://polymarket.com/search?q=${encodeURIComponent(selectedPrediction.question)}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center p-2 text-foreground hover:text-terminal-accent hover:bg-muted/80 rounded transition-all border border-border hover:border-terminal-accent/50"
+                      title={`Open on Polymarket${selectedPrediction.marketSlug ? `: ${selectedPrediction.marketSlug}` : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('🔗 Opening Polymarket link:', {
+                          marketSlug: selectedPrediction.marketSlug,
+                          conditionId: selectedPrediction.conditionId,
+                          question: selectedPrediction.question,
+                          url: selectedPrediction.marketSlug
+                            ? `https://polymarket.com/event/${selectedPrediction.marketSlug}`
+                            : selectedPrediction.conditionId
+                            ? `https://polymarket.com/condition/${selectedPrediction.conditionId}`
+                            : `https://polymarket.com/search?q=${encodeURIComponent(selectedPrediction.question)}`
+                        });
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                    </a>
+                    <button
+                      onClick={() => handleShowTrades(selectedPrediction)}
+                      className="px-3 py-1.5 text-[11px] font-semibold bg-terminal-accent text-black rounded hover:bg-terminal-accent/90 transition-colors whitespace-nowrap"
+                      style={{ fontWeight: 600 }}
+                    >
+                      See Trades
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
           </div>
 
-          {/* Prediction Map Container */}
+          {/* Prediction Map Container - FULL SPACE */}
           <div 
             className={`flex-1 relative ${tradesPanelOpen ? 'pointer-events-none opacity-50' : ''}`}
             onWheel={handleWheel}
@@ -515,6 +665,9 @@ const Index = () => {
             style={{ 
               cursor: isDragging ? 'grabbing' : 'grab',
               overflow: 'hidden',
+              width: '100%',
+              height: '100%',
+              position: 'relative',
             }}
           >
             {/* Subtle grid background */}
@@ -529,20 +682,17 @@ const Index = () => {
               }}
             />
 
-            {/* Prediction Bubble Field with Zoom/Pan */}
+            {/* Prediction Bubble Field with Zoom/Pan - FULL SPACE */}
             <div 
-              className="absolute origin-center"
+              className="absolute inset-0"
               style={{ 
                 transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
                 pointerEvents: isDragging ? 'none' : 'auto',
-                width: `${100 / zoomLevel}%`,
-                height: `${100 / zoomLevel}%`,
-                top: '50%',
-                left: '50%',
-                marginTop: `-${50 / zoomLevel}%`,
-                marginLeft: `-${50 / zoomLevel}%`,
+                width: '100%',
+                height: '100%',
                 overflow: 'visible',
                 willChange: 'transform',
+                transformOrigin: 'center center',
               }}
             >
               <PredictionBubbleField
@@ -574,19 +724,39 @@ const Index = () => {
           )}
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
+          {/* Only show handle when Summary panel is open */}
+          {isSummaryOpen && <ResizableHandle withHandle />}
 
           {/* RIGHT: AI Summary Panel or Agent Builder */}
           <ResizablePanel 
-            size={rightPanelSize}
-            onResize={setRightPanelSize}
-            minSize={5} 
+            defaultSize={isSummaryOpen ? savedRightPanelSize : 0}
+            onResize={(size) => {
+              // Mark as resizing
+              isResizingRef.current = true;
+              
+              // Only allow resizing when panel is open
+              if (isSummaryOpen && size >= 10) {
+                setRightPanelSize(size);
+                // Save the size so it restores to the same size when reopened
+                setSavedRightPanelSize(size);
+                rightPanelRef.current.size = size; // Update ref
+              }
+              
+              // Clear resizing flag after a short delay
+              if (resizeTimeoutRef.current) {
+                clearTimeout(resizeTimeoutRef.current);
+              }
+              resizeTimeoutRef.current = setTimeout(() => {
+                isResizingRef.current = false;
+              }, 100);
+            }}
+            minSize={0} 
             maxSize={60} 
             collapsible={true}
-            collapsedSize={5}
+            collapsedSize={0}
             className="overflow-hidden relative"
           >
-            {rightPanelSize >= 10 && (
+            {isSummaryOpen && rightPanelSize >= 10 && (
               showAgentBuilder && custodialWallet ? (
                 <AgentBuilder
                   walletAddress={custodialWallet.publicKey}
