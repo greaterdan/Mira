@@ -3,7 +3,7 @@ import { LoginButton } from "./LoginButton";
 import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
-import { Bot, BarChart3, Users, Newspaper } from "lucide-react";
+import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail } from "lucide-react";
 
 interface SystemStatusBarProps {
   onToggleAgentBuilder?: () => void;
@@ -79,72 +79,107 @@ export const SystemStatusBar = ({
   };
 
   return (
-    <div className="h-11 bg-bg-elevated border-b border-border flex items-center justify-end gap-2 px-4 py-2">
-      {/* Panel toggle buttons - always visible, even when not logged in */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onTogglePerformance}
-        className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
-          isPerformanceOpen 
-            ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
-            : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
-        }`}
-        title="Performance Index"
-      >
-        <BarChart3 className="w-3.5 h-3.5" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onToggleSummary}
-        className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
-          isSummaryOpen && !showNewsFeed
-            ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
-            : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
-        }`}
-        title="Summary"
-      >
-        <Users className="w-3.5 h-3.5" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onToggleNewsFeed}
-        className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
-          showNewsFeed && isSummaryOpen
-            ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
-            : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
-        }`}
-        title="News Feed"
-      >
-        <Newspaper className="w-3.5 h-3.5" />
-      </Button>
-      
-      {isLoggedIn && custodialWallet && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleAgentBuilder}
-            className="h-7 px-2.5 text-xs font-mono border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
-          >
-            <Bot className="w-2.5 h-2.5 mr-1.5" />
-            Build Agent
-          </Button>
-          <CustodialWallet
-            walletAddress={custodialWallet.publicKey}
-            privateKey={custodialWallet.privateKey}
-          />
-        </>
-      )}
-      <LoginButton
-        onLogin={handleLogin}
-        onLogout={handleLogout}
-        isLoggedIn={isLoggedIn}
-        userEmail={userEmail}
-        walletAddress={walletAddress}
-      />
+    <div className="h-11 bg-bg-elevated border-b border-border flex items-center gap-2 px-4 py-2 relative">
+      {/* Left side - empty */}
+      <div className="flex items-center gap-2"></div>
+
+      {/* Center - GitHub, README, Contact - Absolutely centered */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('https://github.com/greaterdan/aura-predict', '_blank', 'noopener,noreferrer')}
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="GitHub"
+        >
+          <Github className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('https://github.com/greaterdan/aura-predict/blob/main/README.md', '_blank', 'noopener,noreferrer')}
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="README"
+        >
+          <FileText className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('mailto:contact@example.com', '_blank')}
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="Contact"
+        >
+          <Mail className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      {/* Right side - Performance, Summary, News Feed, Build Agent, Wallet, Login */}
+      <div className="flex items-center gap-2 ml-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onTogglePerformance}
+          className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+            isPerformanceOpen 
+              ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+              : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+          }`}
+          title="Performance Index"
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onToggleSummary}
+          className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+            isSummaryOpen && !showNewsFeed
+              ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+              : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+          }`}
+          title="Summary"
+        >
+          <Users className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onToggleNewsFeed}
+          className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+            showNewsFeed && isSummaryOpen
+              ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+              : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+          }`}
+          title="News Feed"
+        >
+          <Newspaper className="w-3.5 h-3.5" />
+        </Button>
+        {isLoggedIn && custodialWallet && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleAgentBuilder}
+              className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+              title="Build Agent"
+            >
+              <Bot className="w-3.5 h-3.5" />
+            </Button>
+            <CustodialWallet
+              walletAddress={custodialWallet.publicKey}
+              privateKey={custodialWallet.privateKey}
+            />
+          </>
+        )}
+        <LoginButton
+          onLogin={handleLogin}
+          onLogout={handleLogout}
+          isLoggedIn={isLoggedIn}
+          userEmail={userEmail}
+          walletAddress={walletAddress}
+        />
+      </div>
     </div>
   );
 };

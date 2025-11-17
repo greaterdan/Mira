@@ -152,15 +152,15 @@ export const PredictionNode = memo(({ data, position, size, animationIndex = 0, 
           </div>
         </div>
 
-        {/* Static highlight ring - NO ANIMATION - stronger glow on hover/select */}
+        {/* Static highlight ring - NO ANIMATION - subtle glow on hover/select */}
         {isHighlighted && (
           <div
             className="absolute inset-0 pointer-events-none rounded-full"
             style={{
-              border: `3px solid ${data.position === "YES" ? 'hsl(var(--trade-yes))' : 'hsl(var(--trade-no))'}`,
+              border: `2px solid ${data.position === "YES" ? 'hsl(var(--trade-yes))' : 'hsl(var(--trade-no))'}`,
               boxShadow: data.position === "YES"
-                ? '0 0 30px hsl(var(--trade-yes) / 1), 0 0 60px hsl(var(--trade-yes) / 0.8), 0 0 90px hsl(var(--trade-yes) / 0.5)'
-                : '0 0 30px hsl(var(--trade-no) / 1), 0 0 60px hsl(var(--trade-no) / 0.8), 0 0 90px hsl(var(--trade-no) / 0.5)'
+                ? '0 0 8px hsl(var(--trade-yes) / 0.4), 0 0 16px hsl(var(--trade-yes) / 0.2)'
+                : '0 0 8px hsl(var(--trade-no) / 0.4), 0 0 16px hsl(var(--trade-no) / 0.2)'
             }}
           />
         )}

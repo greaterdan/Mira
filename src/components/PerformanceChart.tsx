@@ -94,7 +94,7 @@ const MultiAgentTooltip = ({ active, payload, label }: any) => {
 };
 
 // Line Endpoints Component - renders pills at end of each line
-const LineEndpoints = (props: any) => {
+const createLineEndpoints = (selectedAgent: string | null) => (props: any) => {
   const { xAxisMap, yAxisMap, offset, width, height } = props;
   const xAxis = xAxisMap?.[Object.keys(xAxisMap || {})[0]];
   const yAxis = yAxisMap?.[Object.keys(yAxisMap || {})[0]];
@@ -136,6 +136,9 @@ const LineEndpoints = (props: any) => {
   return (
     <g>
       {agents.map((agent) => {
+        // Only show endpoint if agent is visible (all agents or selected agent)
+        const isVisible = selectedAgent === null || selectedAgent === agent.id;
+        if (!isVisible) return null;
         const value = lastDataPoint[agent.id as keyof ChartDataPoint] as number;
         if (value === undefined || value === null) return null;
         
@@ -419,6 +422,9 @@ export const PerformanceChart = () => {
               {agents.map((agent) => {
                 const isVisible = selectedAgent === null || selectedAgent === agent.id;
                 
+                // Only render line if visible
+                if (!isVisible) return null;
+                
                 return (
                   <Line
                     key={agent.id}
@@ -439,7 +445,7 @@ export const PerformanceChart = () => {
               })}
               
               {/* Custom Line Endpoints */}
-              <Customized component={LineEndpoints} />
+              <Customized component={createLineEndpoints(selectedAgent)} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
