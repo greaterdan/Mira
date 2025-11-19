@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { LoginButton } from "./LoginButton";
 import { CustodialWallet } from "./CustodialWallet";
-import { getOrCreateWallet } from "@/lib/wallet";
+import { getOrCreateWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check } from "lucide-react";
@@ -56,13 +56,31 @@ export const SystemStatusBar = ({
       if (storedEmail) setUserEmail(storedEmail);
       if (storedWallet) setWalletAddress(storedWallet);
       
-      // Generate or retrieve custodial wallet
-      const userId = storedEmail || storedWallet || 'default';
-      const wallet = getOrCreateWallet(userId);
+      // First, try to get existing custodial wallet from storage
+      let wallet = getCustodialWallet();
+      
+      // If no custodial wallet exists, generate or retrieve one based on userId
+      if (!wallet) {
+        const userId = storedEmail || storedWallet || 'default';
+        wallet = getOrCreateWallet(userId);
+        // Store it as the main custodial wallet
+        storeCustodialWallet(wallet);
+      }
+      
       setCustodialWallet({
         publicKey: wallet.publicKey,
         privateKey: wallet.privateKey,
       });
+    } else {
+      // Check if there's a stored custodial wallet even without login
+      // (for backwards compatibility)
+      const storedCustodialWallet = getCustodialWallet();
+      if (storedCustodialWallet) {
+        setCustodialWallet({
+          publicKey: storedCustodialWallet.publicKey,
+          privateKey: storedCustodialWallet.privateKey,
+        });
+      }
     }
   }, []);
 
@@ -78,8 +96,17 @@ export const SystemStatusBar = ({
       localStorage.setItem('userEmail', data.email);
     }
     
-    // Generate or retrieve custodial wallet for this user
-    const wallet = getOrCreateWallet(userId || 'default');
+    // First, try to get existing custodial wallet from storage
+    let wallet = getCustodialWallet();
+    
+    // If no custodial wallet exists, generate or retrieve one based on userId
+    if (!wallet) {
+      wallet = getOrCreateWallet(userId || 'default');
+    }
+    
+    // Always store the custodial wallet for persistence
+    storeCustodialWallet(wallet);
+    
     setCustodialWallet({
       publicKey: wallet.publicKey,
       privateKey: wallet.privateKey,
@@ -90,9 +117,14 @@ export const SystemStatusBar = ({
     setIsLoggedIn(false);
     setUserEmail(undefined);
     setWalletAddress(undefined);
+    // Keep custodial wallet in storage even after logout
+    // so user can still see their wallet balance if they return
+    // Only clear if they explicitly want to clear everything
     setCustodialWallet(null);
     localStorage.removeItem('userEmail');
     localStorage.removeItem('walletAddress');
+    // Note: We keep custodialWallet in localStorage for persistence
+    // To fully clear, call clearCustodialWallet()
   };
 
   return (
@@ -137,14 +169,14 @@ export const SystemStatusBar = ({
         </Button>
         <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
           <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
-              title="Contact"
-            >
-              <Mail className="w-3.5 h-3.5" />
-            </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="Contact"
+        >
+          <Mail className="w-3.5 h-3.5" />
+        </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md bg-background border-border">
             <DialogHeader>
@@ -250,7 +282,7 @@ export const SystemStatusBar = ({
         >
           <Bot className="w-3.5 h-3.5" />
         </Button>
-        {isLoggedIn && custodialWallet && (
+        {custodialWallet && (
           <CustodialWallet
             walletAddress={custodialWallet.publicKey}
             privateKey={custodialWallet.privateKey}

@@ -10,7 +10,7 @@ import { MarketDetailsPanel } from "@/components/MarketDetailsPanel";
 import { AISummaryPanel } from "@/components/AISummaryPanel";
 import { NewsFeed } from "@/components/NewsFeed";
 import { Waitlist } from "@/components/Waitlist";
-import { getOrCreateWallet } from "@/lib/wallet";
+import { getOrCreateWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ChevronDown, Search, ExternalLink, Filter, X } from "lucide-react";
@@ -509,11 +509,22 @@ const Index = () => {
   // Get custodial wallet from localStorage when logged in
   useEffect(() => {
     const checkWallet = () => {
-      const storedEmail = localStorage.getItem('userEmail');
-      const storedWallet = localStorage.getItem('walletAddress');
-      if (storedEmail || storedWallet) {
-        const userId = storedEmail || storedWallet || 'default';
-        const wallet = getOrCreateWallet(userId);
+      // First, try to get stored custodial wallet directly
+      let wallet = getCustodialWallet();
+      
+      // If no custodial wallet, check if user is logged in and create/get one
+      if (!wallet) {
+        const storedEmail = localStorage.getItem('userEmail');
+        const storedWallet = localStorage.getItem('walletAddress');
+        if (storedEmail || storedWallet) {
+          const userId = storedEmail || storedWallet || 'default';
+          wallet = getOrCreateWallet(userId);
+          // Store it as the main custodial wallet
+          storeCustodialWallet(wallet);
+        }
+      }
+      
+      if (wallet) {
         setCustodialWallet({
           publicKey: wallet.publicKey,
           privateKey: wallet.privateKey,
@@ -1025,7 +1036,7 @@ const Index = () => {
                   >
                     <div className="space-y-2">
                       {/* Volume Filters */}
-                      <div className="space-y-1">
+                          <div className="space-y-1">
                         <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Volume</Label>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
@@ -1050,7 +1061,7 @@ const Index = () => {
                       </div>
                       
                       {/* Liquidity Filters */}
-                      <div className="space-y-1">
+                          <div className="space-y-1">
                         <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Liquidity</Label>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
@@ -1075,7 +1086,7 @@ const Index = () => {
                       </div>
                       
                       {/* Price Filters */}
-                      <div className="space-y-1">
+                          <div className="space-y-1">
                         <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Price</Label>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
@@ -1106,7 +1117,7 @@ const Index = () => {
                       </div>
                       
                       {/* Probability Filters */}
-                      <div className="space-y-1">
+                          <div className="space-y-1">
                         <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Probability</Label>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
@@ -1137,36 +1148,36 @@ const Index = () => {
                       </div>
                       
                       {/* Sort Options */}
-                      <div className="space-y-1">
+                          <div className="space-y-1">
                         <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Sort</Label>
                         <div className="grid grid-cols-2 gap-1.5">
-                          <Select
-                            value={filters.sortBy}
-                            onValueChange={(value: any) => setFilters({...filters, sortBy: value})}
-                          >
+                            <Select
+                              value={filters.sortBy}
+                              onValueChange={(value: any) => setFilters({...filters, sortBy: value})}
+                            >
                             <SelectTrigger className="h-7 text-xs">
                               <SelectValue placeholder="Field" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="volume">Volume</SelectItem>
-                              <SelectItem value="liquidity">Liquidity</SelectItem>
-                              <SelectItem value="price">Price</SelectItem>
-                              <SelectItem value="probability">Probability</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={filters.sortOrder}
-                            onValueChange={(value: any) => setFilters({...filters, sortOrder: value})}
-                          >
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="volume">Volume</SelectItem>
+                                <SelectItem value="liquidity">Liquidity</SelectItem>
+                                <SelectItem value="price">Price</SelectItem>
+                                <SelectItem value="probability">Probability</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={filters.sortOrder}
+                              onValueChange={(value: any) => setFilters({...filters, sortOrder: value})}
+                            >
                             <SelectTrigger className="h-7 text-xs">
                               <SelectValue placeholder="Order" />
-                            </SelectTrigger>
-                            <SelectContent>
+                              </SelectTrigger>
+                              <SelectContent>
                               <SelectItem value="desc">Desc</SelectItem>
                               <SelectItem value="asc">Asc</SelectItem>
-                            </SelectContent>
-                          </Select>
+                              </SelectContent>
+                            </Select>
                         </div>
                       </div>
                       

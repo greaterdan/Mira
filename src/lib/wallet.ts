@@ -87,3 +87,37 @@ export function getOrCreateWallet(userId: string): WalletData {
   return wallet;
 }
 
+/**
+ * Store custodial wallet directly (not user-specific)
+ * This is the main wallet that persists across sessions
+ */
+export function storeCustodialWallet(walletData: WalletData): void {
+  localStorage.setItem('custodialWallet', JSON.stringify({
+    publicKey: walletData.publicKey,
+    privateKey: walletData.privateKey,
+  }));
+}
+
+/**
+ * Get stored custodial wallet
+ */
+export function getCustodialWallet(): WalletData | null {
+  const stored = localStorage.getItem('custodialWallet');
+  
+  if (!stored) return null;
+  
+  try {
+    const data = JSON.parse(stored);
+    return restoreWallet(data.privateKey);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Clear custodial wallet from storage
+ */
+export function clearCustodialWallet(): void {
+  localStorage.removeItem('custodialWallet');
+}
+
