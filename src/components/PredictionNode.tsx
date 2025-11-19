@@ -78,7 +78,7 @@ export const PredictionNode = memo(({ data, position, size, animationIndex = 0, 
   const bubbleRef = useRef<HTMLDivElement>(null);
   
   const isDragging = externalIsDragging || false;
-
+  
   // Format volume for display
   const formatVolume = (value?: number | string): string => {
     if (!value) return "N/A";
