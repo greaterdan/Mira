@@ -589,7 +589,42 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
     // Filter by category if needed (client-side category filtering)
     // Use search-filtered predictions if search was applied
     let filteredPredictions = searchFilteredPredictions;
-    if (category !== 'All Markets') {
+    
+    // For "All Markets", add variety by mixing high-volume YES and NO outcomes
+    if (category === 'All Markets' && !isSearching && filteredPredictions.length > 0) {
+      // Separate predictions by outcome type (YES vs NO)
+      const yesPredictions = filteredPredictions.filter(p => {
+        const yesPrice = p.yesPrice || 0;
+        const noPrice = p.noPrice || 0;
+        return yesPrice > noPrice; // YES is more likely
+      });
+      
+      const noPredictions = filteredPredictions.filter(p => {
+        const yesPrice = p.yesPrice || 0;
+        const noPrice = p.noPrice || 0;
+        return noPrice >= yesPrice; // NO is more likely or equal
+      });
+      
+      // Sort each group by volume (highest first)
+      yesPredictions.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      noPredictions.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      
+      // Interleave: take top YES and NO markets alternately for variety
+      const mixed = [];
+      const maxToMix = Math.min(yesPredictions.length, noPredictions.length, 150);
+      
+      for (let i = 0; i < maxToMix; i++) {
+        if (i < yesPredictions.length) mixed.push(yesPredictions[i]);
+        if (i < noPredictions.length) mixed.push(noPredictions[i]);
+      }
+      
+      // Add remaining high-volume markets from both groups
+      const remainingYes = yesPredictions.slice(maxToMix);
+      const remainingNo = noPredictions.slice(maxToMix);
+      const allRemaining = [...remainingYes, ...remainingNo].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      
+      filteredPredictions = [...mixed, ...allRemaining];
+    } else if (category !== 'All Markets') {
       filteredPredictions = searchFilteredPredictions.filter(p => {
         if (category === 'Trending' || category === 'Breaking' || category === 'New') {
           // For these, show all (or implement specific logic)
