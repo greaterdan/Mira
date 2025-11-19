@@ -213,13 +213,20 @@ export const AgentTradesPanel = ({ agentId, agentName, agentEmoji, trades, onClo
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    console.log('[AgentTradesPanel] Closed trade clicked:', {
+                      market: trade.market,
+                      predictionId: trade.predictionId,
+                      tradeId: trade.id,
+                      hasOnTradeClick: !!onTradeClick
+                    });
                     // Use predictionId if available, otherwise try to find by market name
-                    if (trade.predictionId) {
-                      onTradeClick?.(trade.market, trade.predictionId);
+                    if (onTradeClick && trade.predictionId) {
+                      onTradeClick(trade.market, trade.predictionId);
                     } else {
-                      console.warn('No predictionId for trade:', trade.id, trade.market);
-                      // Still try to call with market name - parent can try to find it
-                      onTradeClick?.(trade.market, undefined);
+                      console.warn('[AgentTradesPanel] Cannot click closed trade - missing predictionId or onTradeClick handler');
+                      if (onTradeClick) {
+                        onTradeClick(trade.market, undefined);
+                      }
                     }
                   }}
                   style={{ pointerEvents: 'auto', cursor: 'pointer' }}
