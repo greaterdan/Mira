@@ -95,10 +95,11 @@ export async function generateTradeForMarket(
   now: number
 ): Promise<AgentTrade | null> {
   // Skip low-score markets (use relative threshold - top markets should pass)
-  // Threshold lowered from 45 to 10 to allow markets with decent scores to trade
-  // The scoring system normalizes scores, so 10-15 is actually reasonable for top markets
-  if (scored.score < 10) {
-    console.log(`[Engine:${agent.id}] ⏭️ Skipping market "${scored.question.substring(0, 40)}..." - score too low (${scored.score.toFixed(1)} < 10)`);
+  // Threshold lowered from 45 to 8 to allow markets with decent scores to trade
+  // The scoring system normalizes scores, so 8-15 is actually reasonable for top markets
+  // Lowered to 8 to help GROK and GEMINI find more trading opportunities
+  if (scored.score < 8) {
+    console.log(`[Engine:${agent.id}] ⏭️ Skipping market "${scored.question.substring(0, 40)}..." - score too low (${scored.score.toFixed(1)} < 8)`);
     return null;
   }
   
