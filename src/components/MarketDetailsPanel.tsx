@@ -34,9 +34,10 @@ interface MarketDetailsPanelProps {
     featured?: boolean;
   };
   onClose: () => void;
+  onWatchlistChange?: () => void;
 }
 
-export const MarketDetailsPanel = ({ market, onClose }: MarketDetailsPanelProps) => {
+export const MarketDetailsPanel = ({ market, onClose, onWatchlistChange }: MarketDetailsPanelProps) => {
   const [isWatched, setIsWatched] = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,9 @@ export const MarketDetailsPanel = ({ market, onClose }: MarketDetailsPanelProps)
       addToWatchlist(market);
       setIsWatched(true);
     }
+    
+    // Notify parent to refresh watchlist
+    onWatchlistChange?.();
   };
 
   if (!market) return null;
