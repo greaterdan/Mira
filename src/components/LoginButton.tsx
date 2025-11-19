@@ -121,10 +121,11 @@ export const LoginButton = ({
     <button
       onClick={handleGoogleLogin}
       disabled={isConnecting}
-      className="h-9 px-4 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-3 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+      className="h-7 px-2.5 bg-transparent hover:bg-bg-elevated text-muted-foreground hover:text-foreground border border-border rounded-full transition-colors flex items-center gap-2 text-xs font-normal disabled:opacity-50 disabled:cursor-not-allowed"
+      title="Sign in with Google"
     >
-      {/* Google Logo SVG */}
-      <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      {/* Google Logo SVG - smaller */}
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
           fill="#4285F4"
@@ -142,7 +143,7 @@ export const LoginButton = ({
           fill="#EA4335"
         />
       </svg>
-      <span>{isConnecting ? 'Signing in...' : 'Sign in with Google'}</span>
+      <span className="hidden sm:inline">{isConnecting ? 'Signing in...' : 'Google'}</span>
     </button>
   );
 };
