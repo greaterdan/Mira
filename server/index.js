@@ -1136,11 +1136,16 @@ app.get('/api/news', async (req, res) => {
       responseData.totalResults = responseData.articles.length;
     }
     
+    // Log summary (only occasionally to reduce log spam)
+    if (Math.random() < 0.1) {
+      console.log(`[NEWS] Fetched ${allArticles.length} articles (${responseData.sources.newsapi} from NewsAPI, ${responseData.sources.newsdata} from NewsData, ${responseData.sources.gnews} from GNews)`);
+    }
+    
     res.json(responseData);
   } catch (error) {
-    console.error(`[${req.id}] Error in /api/news:`, error);
+    console.error(`[${req.id}] Error in /api/news:`, error.message);
     // Return cached data if available, even if expired
-    if (newsCache.data) {
+    if (newsCache.data && newsCache.data.articles && newsCache.data.articles.length > 0) {
       let cachedData = newsCache.data;
       
       if (source !== 'all') {
@@ -1151,14 +1156,27 @@ app.get('/api/news', async (req, res) => {
         };
       }
       
+      console.log(`[NEWS] Returning cached data: ${cachedData.articles.length} articles`);
       return res.json(cachedData);
+    }
+    
+    // If no cache and no API keys configured, return empty but valid response
+    if (!NEWS_API_KEY && !NEWSDATA_API_KEY && !GNEWS_API_KEY) {
+      console.warn('[NEWS] No news API keys configured - returning empty response');
+      return res.json({
+        status: 'ok',
+        totalResults: 0,
+        articles: [],
+        sources: { newsapi: 0, newsdata: 0, gnews: 0 },
+      });
     }
     
     // SECURITY: Don't expose error details to clients
     res.status(500).json({ 
+      status: 'error',
       error: isProduction ? 'Internal server error' : error.message,
       articles: [],
-      status: 'error',
+      totalResults: 0,
     });
   }
 });
