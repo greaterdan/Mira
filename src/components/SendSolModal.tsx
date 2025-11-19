@@ -33,12 +33,9 @@ export const SendSolModal = ({ open, onOpenChange, walletAddress, privateKey, on
   const fetchBalance = async () => {
     setIsLoadingBalance(true);
     try {
-      // Try multiple RPC endpoints for reliability
-      const rpcEndpoints = [
-        "https://api.mainnet-beta.solana.com",
-        "https://rpc.ankr.com/solana",
-        "https://solana-api.projectserum.com",
-      ];
+      // Get RPC endpoints (Helius first if configured, then public endpoints)
+      const { getSolanaRpcEndpoints } = await import('@/lib/apiConfig');
+      const rpcEndpoints = getSolanaRpcEndpoints();
       
       let lastError: Error | null = null;
       for (const endpoint of rpcEndpoints) {
@@ -140,12 +137,9 @@ export const SendSolModal = ({ open, onOpenChange, walletAddress, privateKey, on
       const secretKey = bs58.decode(privateKey);
       const keypair = Keypair.fromSecretKey(secretKey);
 
-      // Connect to Solana network - try multiple endpoints
-      const rpcEndpoints = [
-        "https://api.mainnet-beta.solana.com",
-        "https://rpc.ankr.com/solana",
-        "https://solana-api.projectserum.com",
-      ];
+      // Connect to Solana network - get RPC endpoints (Helius first if configured)
+      const { getSolanaRpcEndpoints } = await import('@/lib/apiConfig');
+      const rpcEndpoints = getSolanaRpcEndpoints();
       
       let connection: Connection | null = null;
       let lastError: Error | null = null;

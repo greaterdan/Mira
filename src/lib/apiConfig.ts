@@ -24,3 +24,27 @@ const getApiBaseUrl = (): string => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+// Solana RPC configuration
+// Helius is a premium RPC provider - more reliable than public endpoints
+// Get your API key from: https://www.helius.dev/
+// Format: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
+export const getSolanaRpcEndpoints = (): string[] => {
+  const heliusApiKey = import.meta.env.VITE_HELIUS_API_KEY;
+  
+  const endpoints: string[] = [];
+  
+  // Add Helius first if API key is configured (most reliable)
+  if (heliusApiKey) {
+    endpoints.push(`https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`);
+  }
+  
+  // Add public endpoints as fallback
+  endpoints.push(
+    'https://api.mainnet-beta.solana.com',
+    'https://rpc.ankr.com/solana',
+    'https://solana-api.projectserum.com'
+  );
+  
+  return endpoints;
+};
+

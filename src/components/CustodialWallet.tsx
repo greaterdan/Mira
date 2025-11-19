@@ -35,12 +35,9 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
     
     setIsLoading(true);
     try {
-      // Try Helius public RPC first (more reliable than official endpoint)
-      const rpcEndpoints = [
-        'https://api.mainnet-beta.solana.com',
-        'https://rpc.ankr.com/solana',
-        'https://solana-api.projectserum.com',
-      ];
+      // Get RPC endpoints (Helius first if configured, then public endpoints)
+      const { getSolanaRpcEndpoints } = await import('@/lib/apiConfig');
+      const rpcEndpoints = getSolanaRpcEndpoints();
       
       let lastError: Error | null = null;
       for (const endpoint of rpcEndpoints) {
