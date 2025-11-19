@@ -415,10 +415,16 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
         }
       } catch (error) {
         console.error('Failed to fetch agent summary:', error);
-        // Fallback to empty array
-        setDecisions([]);
+        // Don't clear decisions on error - keep existing ones visible
+        // Only set loading to false if we were actually loading
+        if (decisions.length === 0) {
+          setLoading(false);
+        }
       } finally {
-        setLoading(false);
+        // Only set loading to false if we were actually loading
+        if (decisions.length === 0) {
+          setLoading(false);
+        }
       }
     };
     
