@@ -189,7 +189,7 @@ export async function generateTradeForMarket(
   investmentUsd = investmentUsd * personalitySizeMultiplier;
   
   // Apply hard caps and floors
-  const MIN_INVESTMENT = 30; // Minimum $30 per trade
+  const MIN_INVESTMENT = 130; // Minimum $130 per trade (user requirement)
   const MAX_INVESTMENT = STARTING_CAPITAL * 0.20; // 20% max per market ($600)
   investmentUsd = Math.max(MIN_INVESTMENT, Math.min(investmentUsd, MAX_INVESTMENT));
   

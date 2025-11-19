@@ -148,8 +148,19 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           categoryValue = typeof firstTag === 'string' ? firstTag : String(firstTag);
         }
         
+        // Use condition_id as ID to match prediction IDs from bubble maps
+        // This ensures trades can be clicked and matched to predictions
+        const marketId = conditionId 
+          ? String(conditionId) 
+          : (actualMarket.slug ? String(actualMarket.slug) : null);
+        
+        if (!marketId) {
+          // Skip markets without valid IDs
+          return null;
+        }
+        
         return {
-          id: conditionId || String(actualMarket.slug || ''),
+          id: marketId, // Use condition_id to match prediction IDs
           question,
           category: mapCategory(categoryValue),
           volumeUsd: volume,
@@ -158,8 +169,8 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           priceChange24h: 0, // Will be calculated if needed
           raw: actualMarket,
         };
-      }).filter((m: Market) => {
-        return m.id && m.question && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
+      }).filter((m: Market | null): m is Market => {
+        return m !== null && m.id && m.question && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
       });
       
       console.log(`[Polymarket] ✅ Mapped to ${markets.length} valid markets`);
