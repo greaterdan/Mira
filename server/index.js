@@ -183,6 +183,13 @@ app.use('/api/', (req, res, next) => {
 app.use(express.json({ limit: '1mb' })); // Limit request body size
 app.use(cookieParser()); // Parse cookies for CSRF protection
 
+// SECURITY: Add request ID for logging and tracking
+app.use((req, res, next) => {
+  req.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  res.setHeader('X-Request-ID', req.id);
+  next();
+});
+
 // SECURITY: CSRF Protection
 // Generate a secret for CSRF tokens (use environment variable or generate one)
 const csrfSecret = process.env.CSRF_SECRET || 'csrf-secret-change-in-production-' + Date.now();
@@ -194,13 +201,6 @@ if (isProduction && !process.env.CSRF_SECRET) {
   console.warn('   Set CSRF_SECRET environment variable for security.');
   console.warn('   Generate a secure random string: openssl rand -base64 32');
 }
-
-// SECURITY: Add request ID for logging and tracking
-app.use((req, res, next) => {
-  req.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  res.setHeader('X-Request-ID', req.id);
-  next();
-});
 
 // Cache for predictions (5 minute cache - markets don't change that frequently)
 let predictionsCache = {
