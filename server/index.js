@@ -817,11 +817,8 @@ const fetchNewsAPI = async () => {
       const data = await response.json();
       
       if (data.status === 'ok' && data.articles) {
-        // Filter to only articles from last 24 hours (double-check)
+        // Filter to only articles from last 7 days
         const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        
-        // Relaxed to 7 days to get more articles
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return data.articles
           .filter(article => {
@@ -835,8 +832,17 @@ const fetchNewsAPI = async () => {
           }));
       }
       
+      // Log API errors (only occasionally to reduce spam)
+      if (data.status !== 'ok' && Math.random() < 0.1) {
+        console.warn(`[NEWS] NewsAPI error for query "${query}":`, data.message || data.status);
+      }
+      
       return [];
     } catch (error) {
+      // Log fetch errors (only occasionally)
+      if (Math.random() < 0.1) {
+        console.warn(`[NEWS] NewsAPI fetch error for query "${query}":`, error.message);
+      }
       return [];
     }
   });
@@ -897,6 +903,11 @@ const fetchNewsData = async () => {
       const response = await fetch(url);
       
       if (!response.ok) {
+        // Log API errors (only occasionally to reduce spam)
+        if (Math.random() < 0.1) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.warn(`[NEWS] NewsData.io HTTP error ${response.status} for query "${query}":`, errorText.substring(0, 200));
+        }
         return [];
       }
       
@@ -1139,11 +1150,6 @@ app.get('/api/news', async (req, res) => {
         timestamp: Date.now(),
         CACHE_DURATION: 2 * 60 * 1000, // 2 minutes instead of 5
       };
-      
-      // Log news fetch results (sampled at 10% to reduce log spam)
-      if (Math.random() < 0.1) {
-        console.log(`[NEWS] Fetched ${allArticles.length} articles (${responseData.sources.newsapi} from NewsAPI, ${responseData.sources.newsdata} from NewsData, ${responseData.sources.gnews} from GNews)`);
-      }
       
     // Filter by source if needed
     if (source !== 'all') {
