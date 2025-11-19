@@ -16,7 +16,27 @@ import session from 'express-session';
 import { createClient } from 'redis';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const connectRedis = require('connect-redis');
+// connect-redis v7.x - load the factory function
+// The CJS build should export the factory directly or as default
+let connectRedisFactory;
+try {
+  const connectRedisModule = require('connect-redis');
+  // Try to get the factory function - it might be the module itself or a default property
+  if (typeof connectRedisModule === 'function') {
+    connectRedisFactory = connectRedisModule;
+  } else if (connectRedisModule.default && typeof connectRedisModule.default === 'function') {
+    connectRedisFactory = connectRedisModule.default;
+  } else {
+    // If it's an object, try to find the factory
+    const keys = Object.keys(connectRedisModule);
+    console.log('[REDIS] connect-redis module keys:', keys);
+    throw new Error(`connect-redis module is not a function. Type: ${typeof connectRedisModule}, Keys: ${keys.join(', ')}`);
+  }
+  console.log('[REDIS] connect-redis factory loaded, type:', typeof connectRedisFactory);
+} catch (error) {
+  console.error('[REDIS] Failed to load connect-redis:', error.message);
+  connectRedisFactory = null;
+}
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { fetchAllMarkets } from './services/polymarketService.js';
@@ -254,7 +274,17 @@ if (redisUrl) {
     
     // Create RedisStore (will work even if not connected yet - Redis client handles reconnection)
     try {
-      const RedisStore = connectRedis(session);
+      if (!connectRedisFactory || typeof connectRedisFactory !== 'function') {
+        throw new Error(`connect-redis factory not available. Type: ${typeof connectRedisFactory}`);
+      }
+      
+      // connect-redis v7.x: the factory function takes session and returns RedisStore class
+      const RedisStore = connectRedisFactory(session);
+      
+      if (!RedisStore) {
+        throw new Error('RedisStore factory returned undefined - check connect-redis version');
+      }
+      
       sessionStore = new RedisStore({
         client: redisClient,
         prefix: 'probly:sess:',
