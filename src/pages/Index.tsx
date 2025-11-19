@@ -1420,7 +1420,22 @@ const Index = () => {
                       }}
                     />
                   ) : (
-                    <AISummaryPanel />
+                    <AISummaryPanel 
+                      onTradeClick={(marketId) => {
+                        // Find the prediction by marketId and open it
+                        const matchingPrediction = predictions.find(p => p.id === marketId);
+                        if (matchingPrediction) {
+                          setSelectedPrediction(matchingPrediction);
+                          setSelectedNode(matchingPrediction.id);
+                          if (!isPerformanceOpen) {
+                            setIsPerformanceOpen(true);
+                            setLeftPanelSize(30);
+                          }
+                        } else {
+                          console.warn('Prediction not found for market ID:', marketId);
+                        }
+                      }}
+                    />
                   )}
           </ResizablePanel>
         </ResizablePanelGroup>

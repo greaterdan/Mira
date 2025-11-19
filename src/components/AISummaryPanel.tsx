@@ -20,6 +20,7 @@ interface AIDecision {
   timestamp: Date;
   action: string;
   market: string;
+  marketId?: string; // Add marketId for finding the prediction
   decision: "YES" | "NO";
   confidence: number;
   reasoning: string;
@@ -31,6 +32,10 @@ interface AIDecision {
     confidence: number;
     reasoning: string;
   }>;
+}
+
+interface AISummaryPanelProps {
+  onTradeClick?: (marketId: string) => void;
 }
 
 const mockDecisions: AIDecision[] = [
@@ -267,7 +272,7 @@ const formatTimeAgo = (date: Date) => {
   return `${hours}h ago`;
 };
 
-export const AISummaryPanel = () => {
+export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
   const [decisions, setDecisions] = useState<AIDecision[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -337,6 +342,7 @@ export const AISummaryPanel = () => {
                   timestamp: new Date(trade.openedAt),
                   action: 'TRADE',
                   market: trade.marketQuestion || trade.marketId || 'Unknown Market',
+                  marketId: trade.marketId, // Store marketId for clicking
                   decision: trade.side,
                   confidence: Math.round(trade.confidence * 100),
                   reasoning: reasoningText,
@@ -399,6 +405,18 @@ export const AISummaryPanel = () => {
 
       {/* Activity Feed */}
       <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-[13px] text-muted-foreground font-mono">Loading summary...</div>
+          </div>
+        ) : decisions.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-[13px] text-muted-foreground font-mono mb-2">No active trades</div>
+              <div className="text-[11px] text-muted-foreground font-mono">Agents are analyzing markets...</div>
+            </div>
+          </div>
+        ) : (
         <div className="p-3 space-y-3">
           {decisions.map((decision, index) => {
             const isExpanded = expandedId === decision.id;
@@ -414,8 +432,16 @@ export const AISummaryPanel = () => {
               >
                 {/* Clickable Header */}
                 <div
-                  onClick={() => hasHistory && toggleExpand(decision.id)}
-                  className={`p-3 ${hasHistory ? 'cursor-pointer' : ''}`}
+                  onClick={(e) => {
+                    if (hasHistory) {
+                      toggleExpand(decision.id);
+                    } else if (decision.marketId && onTradeClick) {
+                      // Click to open market details
+                      e.stopPropagation();
+                      onTradeClick(decision.marketId);
+                    }
+                  }}
+                  className={`p-3 ${hasHistory || decision.marketId ? 'cursor-pointer' : ''}`}
                 >
                   {/* Agent Header */}
                   <div className="flex items-center justify-between mb-2">
@@ -560,6 +586,7 @@ export const AISummaryPanel = () => {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Footer Stats */}
