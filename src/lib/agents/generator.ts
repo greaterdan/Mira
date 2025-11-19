@@ -66,8 +66,18 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
   const marketsWithBoth = markets.filter(m => m.volumeUsd >= agent.minVolume && m.liquidityUsd >= agent.minLiquidity).length;
   console.log(`[Agent:${agentId}] 📊 Market stats: ${totalMarkets} total, ${marketsWithVolume} meet volume, ${marketsWithLiquidity} meet liquidity, ${marketsWithBoth} meet both`);
   
-  const candidates = filterCandidateMarkets(agent, markets);
-  console.log(`[Agent:${agentId}] ✅ Found ${candidates.length} candidate markets`);
+  // Filter to only markets with valid condition_ids (must match prediction IDs)
+  // This ensures all trades are clickable and match existing predictions
+  const validMarkets = markets.filter(m => {
+    // Market ID must be a valid condition_id (numeric string or valid ID format)
+    // This ensures it matches prediction IDs from the bubble maps
+    return m.id && m.id.trim() !== '' && !m.id.startsWith('market-');
+  });
+  
+  console.log(`[Agent:${agentId}] 🔍 Filtered to ${validMarkets.length} markets with valid IDs (from ${markets.length} total)`);
+  
+  const candidates = filterCandidateMarkets(agent, validMarkets);
+  console.log(`[Agent:${agentId}] ✅ Found ${candidates.length} candidate markets with valid IDs`);
   
   // Log sample candidate markets for visibility
   if (candidates.length > 0) {
