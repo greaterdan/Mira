@@ -238,7 +238,13 @@ export const NewsFeed = () => {
           </div>
         ) : news.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <span className="text-xs text-muted-foreground font-mono">No news available</span>
+            <div className="text-center">
+              <Newspaper className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+              <span className="text-xs text-muted-foreground font-mono block mb-1">No news available</span>
+              <span className="text-[10px] text-muted-foreground font-mono opacity-70">
+                Check if news API keys are configured
+              </span>
+            </div>
           </div>
         ) : (
           <div className="p-3 space-y-2">
