@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LoginButton } from "./LoginButton";
 import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet, getStoredWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
@@ -51,7 +51,15 @@ export const SystemStatusBar = ({
     }
   };
 
+  // Track if we're in the middle of a logout to prevent re-login
+  const isLoggingOutRef = useRef(false);
+
   useEffect(() => {
+    // Skip auth check if we're logging out
+    if (isLoggingOutRef.current) {
+      return;
+    }
+
     // Always check server session first to ensure we have the latest auth state
     const checkAuth = async () => {
       try {
@@ -64,7 +72,7 @@ export const SystemStatusBar = ({
           const data = await response.json();
           if (data.authenticated && data.user?.email) {
             // User is logged in via OAuth session
-      setIsLoggedIn(true);
+            setIsLoggedIn(true);
             setUserEmail(data.user.email);
             // Update localStorage to match server session
             localStorage.setItem('userEmail', data.user.email);
@@ -77,10 +85,10 @@ export const SystemStatusBar = ({
             // Store as custodial wallet for persistence
             storeCustodialWallet(wallet);
       
-      setCustodialWallet({
-        publicKey: wallet.publicKey,
-        privateKey: wallet.privateKey,
-      });
+            setCustodialWallet({
+              publicKey: wallet.publicKey,
+              privateKey: wallet.privateKey,
+            });
             return; // Exit early if authenticated
           }
         }
@@ -98,35 +106,42 @@ export const SystemStatusBar = ({
         
         // Check if there's a stored custodial wallet (for backwards compatibility)
         // but don't set logged in state
-      const storedCustodialWallet = getCustodialWallet();
-      if (storedCustodialWallet) {
-        setCustodialWallet({
-          publicKey: storedCustodialWallet.publicKey,
-          privateKey: storedCustodialWallet.privateKey,
-        });
+        const storedCustodialWallet = getCustodialWallet();
+        if (storedCustodialWallet) {
+          setCustodialWallet({
+            publicKey: storedCustodialWallet.publicKey,
+            privateKey: storedCustodialWallet.privateKey,
+          });
         } else {
           setCustodialWallet(null);
-    }
+        }
       } catch (error) {
         // Network error or server unavailable
         console.debug('Auth check failed:', error);
         
-        // Fallback: check localStorage as backup (but this is less reliable)
-        const storedEmail = localStorage.getItem('userEmail');
-        if (storedEmail) {
-          // Use localStorage as fallback if server check fails
-          setIsLoggedIn(true);
-          setUserEmail(storedEmail);
-          
-          // Get or create wallet (checks server first, then localStorage)
-          const wallet = await getOrCreateWallet(storedEmail);
-          
-          storeCustodialWallet(wallet);
-          setCustodialWallet({
-            publicKey: wallet.publicKey,
-            privateKey: wallet.privateKey,
-          });
+        // Only use localStorage fallback if we're not logging out
+        // and if there's no explicit logout flag
+        if (!isLoggingOutRef.current) {
+          const storedEmail = localStorage.getItem('userEmail');
+          if (storedEmail) {
+            // Use localStorage as fallback if server check fails
+            setIsLoggedIn(true);
+            setUserEmail(storedEmail);
+            
+            // Get or create wallet (checks server first, then localStorage)
+            const wallet = await getOrCreateWallet(storedEmail);
+            
+            storeCustodialWallet(wallet);
+            setCustodialWallet({
+              publicKey: wallet.publicKey,
+              privateKey: wallet.privateKey,
+            });
+          } else {
+            setIsLoggedIn(false);
+            setUserEmail(undefined);
+          }
         } else {
+          // We're logging out, ensure we're logged out
           setIsLoggedIn(false);
           setUserEmail(undefined);
         }
@@ -155,18 +170,38 @@ export const SystemStatusBar = ({
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Set logout flag to prevent re-login
+    isLoggingOutRef.current = true;
+    
+    // Clear local state immediately
     setIsLoggedIn(false);
     setUserEmail(undefined);
-    // Keep custodial wallet in storage even after logout
-    // so user can still see their wallet balance if they return
-    // The wallet is tied to their email, so it will be restored on next login
     setCustodialWallet(null);
+    
+    // Clear localStorage
     localStorage.removeItem('userEmail');
-    // Note: We keep the wallet in localStorage (keyed by email) for persistence
-    // To fully clear, call clearCustodialWallet()
+    
+    // Call server logout endpoint to clear session
+    try {
+      const { API_BASE_URL } = await import('@/lib/apiConfig');
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.debug('Logout request failed:', error);
+      // Continue with logout even if server request fails
+    }
+    
     // Notify parent component to close waitlist panel if open
     onLogout?.();
+    
+    // Reset logout flag after a delay to allow auth checks to work again
+    // This prevents immediate re-login but allows future auth checks
+    setTimeout(() => {
+      isLoggingOutRef.current = false;
+    }, 2000);
   };
 
   return (

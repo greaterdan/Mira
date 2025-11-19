@@ -144,7 +144,13 @@ export const LoginButton = ({
   };
 
   // Check for OAuth session on mount and after auth redirect
+  // Only check if not already logged in (to avoid re-login after logout)
   useEffect(() => {
+    // Skip if already logged in to prevent unnecessary checks
+    if (isLoggedIn) {
+      return;
+    }
+
     const checkAuth = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
@@ -166,7 +172,7 @@ export const LoginButton = ({
 
     // Check on mount if already logged in
     checkAuth();
-  }, [onLogin]);
+  }, [onLogin, isLoggedIn]);
 
   if (isLoggedIn) {
     return (
