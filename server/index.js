@@ -1108,6 +1108,7 @@ const fetchNewsData = async () => {
   const fromDateStr = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
   // NewsData.io uses different query parameters - try multiple queries
+  // Using more queries to get more articles (max 10 per query for free tier)
   const queries = [
     'prediction',
     'election',
@@ -1119,14 +1120,24 @@ const fetchNewsData = async () => {
     'economy',
     'technology',
     'sports',
-    'climate'
+    'climate',
+    'politics',
+    'finance',
+    'trading',
+    'crypto',
+    'solana',
+    'defi',
+    'nft',
+    'web3',
+    'markets'
   ];
   
   // Fetch from multiple queries and combine results
   const fetchPromises = queries.map(async (query) => {
     try {
-      // NewsData.io supports time_from parameter for filtering by date
-      const url = `${NEWSDATA_API_URL}?apikey=${NEWSDATA_API_KEY}&q=${encodeURIComponent(query)}&language=en&size=10&time_from=${fromDateStr}`;
+      // NewsData.io doesn't support time_from in /1/news endpoint - filter by date manually instead
+      // Maximum size is 10 for free tier
+      const url = `${NEWSDATA_API_URL}?apikey=${NEWSDATA_API_KEY}&q=${encodeURIComponent(query)}&language=en&size=10`;
       
       const response = await fetch(url);
       
