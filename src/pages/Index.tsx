@@ -618,6 +618,7 @@ const Index = () => {
     // Opening Summary - switch to Summary view (close other views)
     setShowNewsFeed(false);
     setShowWaitlist(false);
+    setShowWatchlist(false); // Close watchlist when opening summary
     setIsSummaryOpen(true);
     const defaultSize = 30;
     setRightPanelSize(defaultSize);
