@@ -10,7 +10,9 @@ import { MarketDetailsPanel } from "@/components/MarketDetailsPanel";
 import { AISummaryPanel } from "@/components/AISummaryPanel";
 import { NewsFeed } from "@/components/NewsFeed";
 import { Waitlist } from "@/components/Waitlist";
+import { Watchlist } from "@/components/Watchlist";
 import { getOrCreateWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
+import { getWatchlist, removeFromWatchlist } from "@/lib/watchlist";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ChevronDown, Search, ExternalLink, Filter, X } from "lucide-react";
@@ -55,7 +57,7 @@ const Index = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>("");
   const [predictions, setPredictions] = useState<PredictionNodeData[]>([]);
   const [loadingMarkets, setLoadingMarkets] = useState(false);
-  const [bubbleLimit, setBubbleLimit] = useState<number>(150);
+  const [bubbleLimit, setBubbleLimit] = useState<number>(100);
   
   // Debounce search query to prevent glitching during typing
   useEffect(() => {
@@ -80,6 +82,8 @@ const Index = () => {
     sortOrder: 'desc' as 'asc' | 'desc',
   });
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showWatchlist, setShowWatchlist] = useState(false);
+  const [watchlist, setWatchlist] = useState<PredictionNodeData[]>([]);
   const [custodialWallet, setCustodialWallet] = useState<{ publicKey: string; privateKey: string } | null>(null);
   // Panel visibility state - both open by default
   const [isPerformanceOpen, setIsPerformanceOpen] = useState(true);
@@ -215,6 +219,33 @@ const Index = () => {
 
     return () => clearInterval(refreshInterval);
   }, [selectedCategory]); // Only refetch when category changes - search is client-side only
+
+  // Load watchlist from localStorage on mount and when it changes
+  useEffect(() => {
+    const loadWatchlist = () => {
+      const stored = getWatchlist();
+      setWatchlist(stored);
+    };
+    
+    loadWatchlist();
+    
+    // Listen for storage changes (from other tabs/windows)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'probly_watchlist') {
+        loadWatchlist();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically in case localStorage was updated in same tab
+    const interval = setInterval(loadWatchlist, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Simulate AI trading activity
   useEffect(() => {
@@ -573,7 +604,7 @@ const Index = () => {
   const handleToggleSummary = () => {
     setIsTransitioning(true);
     // If Summary is already showing (and no other view is active), close the panel
-    if (isSummaryOpen && !showNewsFeed && !showWaitlist) {
+    if (isSummaryOpen && !showNewsFeed && !showWaitlist && !showWatchlist) {
       setIsSummaryOpen(false);
       setRightPanelSize(0);
       // Dashboard stays 100% - no size updates needed
@@ -631,6 +662,36 @@ const Index = () => {
       }, 150); // Faster transition for better responsiveness
   };
 
+  const handleToggleWatchlist = () => {
+    setIsTransitioning(true);
+    // If Watchlist is already showing, close the panel
+    if (showWatchlist && isSummaryOpen && !showNewsFeed && !showWaitlist) {
+      setShowWatchlist(false);
+      setIsSummaryOpen(false);
+      setRightPanelSize(0);
+      setTimeout(() => {
+        setIsTransitioning(false);
+        isTransitioningRef.current = false;
+      }, 150);
+      return;
+    }
+    
+    // Opening Watchlist - switch to Watchlist view (close other views)
+    setShowNewsFeed(false);
+    setShowWaitlist(false);
+    setShowWatchlist(true);
+    setIsSummaryOpen(true); // Always open summary panel when showing watchlist
+    const defaultSize = 30;
+    setRightPanelSize(defaultSize);
+    setSavedRightPanelSize(defaultSize);
+    localStorage.setItem('savedRightPanelSize', '30');
+    localStorage.removeItem('react-resizable-panels:panel-layout');
+    setTimeout(() => {
+      setIsTransitioning(false);
+      isTransitioningRef.current = false;
+    }, 150);
+  };
+
   const handleToggleNewsFeed = () => {
     setIsTransitioning(true);
     // If News Feed is already showing and panel is open, close it
@@ -638,6 +699,7 @@ const Index = () => {
       setIsSummaryOpen(false);
       setShowNewsFeed(false);
       setShowWaitlist(false);
+      setShowWatchlist(false);
       setRightPanelSize(0);
       // Dashboard stays 100% - no size updates needed
       setTimeout(() => {
@@ -680,6 +742,7 @@ const Index = () => {
         onTogglePerformance={handleTogglePerformance}
         onToggleSummary={handleToggleSummary}
         onToggleNewsFeed={handleToggleNewsFeed}
+        onToggleWatchlist={handleToggleWatchlist}
         onLogout={() => {
           // Close waitlist panel when user logs out
           if (showWaitlist) {
@@ -692,6 +755,7 @@ const Index = () => {
         isSummaryOpen={isSummaryOpen}
         showNewsFeed={showNewsFeed}
         showWaitlist={showWaitlist}
+        showWatchlist={showWatchlist}
       />
 
       {/* Main Content Area - Dashboard is always 100% width/height */}
@@ -1054,6 +1118,19 @@ const Index = () => {
                 >
                   {showWaitlist ? (
                     <Waitlist />
+                  ) : showWatchlist ? (
+                    <Watchlist 
+                      watchlist={watchlist}
+                      onRemove={(id) => {
+                        removeFromWatchlist(id);
+                        setWatchlist(getWatchlist());
+                      }}
+                      onMarketClick={(market) => {
+                        setSelectedPrediction(market);
+                        setSelectedNode(market.id);
+                        setShowWatchlist(false);
+                      }}
+                    />
                   ) : showNewsFeed ? (
                     <NewsFeed />
                   ) : (

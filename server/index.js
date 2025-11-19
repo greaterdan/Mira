@@ -587,58 +587,7 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
     // Filter by category if needed (client-side category filtering)
     // Use search-filtered predictions if search was applied
     let filteredPredictions = searchFilteredPredictions;
-    
-    // For "All Markets", mix YES and NO markets for better variety
-    if (category === 'All Markets' && !isSearching && filteredPredictions.length > 0) {
-      // Separate predictions by outcome type (YES vs NO)
-      const yesPredictions = filteredPredictions.filter(p => {
-        const yesPrice = p.yesPrice || 0;
-        const noPrice = p.noPrice || 0;
-        return yesPrice > noPrice; // YES is more likely
-      });
-      
-      const noPredictions = filteredPredictions.filter(p => {
-        const yesPrice = p.yesPrice || 0;
-        const noPrice = p.noPrice || 0;
-        return noPrice >= yesPrice; // NO is more likely or equal
-      });
-      
-      // Sort each group by volume (highest first) to prioritize high-volume markets
-      yesPredictions.sort((a, b) => {
-        const aVol = typeof a.volume === 'string' ? parseFloat(a.volume) : (a.volume || 0);
-        const bVol = typeof b.volume === 'string' ? parseFloat(b.volume) : (b.volume || 0);
-        return bVol - aVol;
-      });
-      noPredictions.sort((a, b) => {
-        const aVol = typeof a.volume === 'string' ? parseFloat(a.volume) : (a.volume || 0);
-        const bVol = typeof b.volume === 'string' ? parseFloat(b.volume) : (b.volume || 0);
-        return bVol - aVol;
-      });
-      
-      // Interleave: take top YES and NO markets alternately for variety
-      // Take more YES markets to balance out the typically higher number of NO markets
-      const mixed = [];
-      const maxToMix = Math.min(yesPredictions.length, noPredictions.length, 75); // Mix up to 75 of each
-      
-      for (let i = 0; i < maxToMix; i++) {
-        // Alternate: YES, NO, YES, NO...
-        if (i < yesPredictions.length) mixed.push(yesPredictions[i]);
-        if (i < noPredictions.length) mixed.push(noPredictions[i]);
-      }
-      
-      // Add remaining high-volume markets from both groups (prioritize YES to balance)
-      const remainingYes = yesPredictions.slice(maxToMix);
-      const remainingNo = noPredictions.slice(maxToMix);
-      
-      // Add more YES markets first, then NO markets
-      const allRemaining = [...remainingYes, ...remainingNo].sort((a, b) => {
-        const aVol = typeof a.volume === 'string' ? parseFloat(a.volume) : (a.volume || 0);
-        const bVol = typeof b.volume === 'string' ? parseFloat(b.volume) : (b.volume || 0);
-        return bVol - aVol;
-      });
-      
-      filteredPredictions = [...mixed, ...allRemaining];
-    } else if (category !== 'All Markets') {
+    if (category !== 'All Markets') {
       filteredPredictions = searchFilteredPredictions.filter(p => {
         if (category === 'Trending' || category === 'Breaking' || category === 'New') {
           // For these, show all (or implement specific logic)

@@ -1,5 +1,7 @@
-import { X, ExternalLink, TrendingUp, TrendingDown, DollarSign, BarChart3, Clock, Tag, Info } from "lucide-react";
+import { X, ExternalLink, TrendingUp, TrendingDown, DollarSign, BarChart3, Clock, Tag, Info, Star } from "lucide-react";
 import { PredictionNodeData } from "./PredictionNode";
+import { isInWatchlist, addToWatchlist, removeFromWatchlist } from "@/lib/watchlist";
+import { useState, useEffect } from "react";
 
 interface Outcome {
   tokenId: string;
@@ -35,6 +37,26 @@ interface MarketDetailsPanelProps {
 }
 
 export const MarketDetailsPanel = ({ market, onClose }: MarketDetailsPanelProps) => {
+  const [isWatched, setIsWatched] = useState(false);
+
+  useEffect(() => {
+    if (market) {
+      setIsWatched(isInWatchlist(market.id));
+    }
+  }, [market]);
+
+  const handleToggleWatchlist = () => {
+    if (!market) return;
+    
+    if (isWatched) {
+      removeFromWatchlist(market.id);
+      setIsWatched(false);
+    } else {
+      addToWatchlist(market);
+      setIsWatched(true);
+    }
+  };
+
   if (!market) return null;
 
   const formatCurrency = (value?: number) => {
@@ -116,13 +138,24 @@ export const MarketDetailsPanel = ({ market, onClose }: MarketDetailsPanelProps)
             </div>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center border border-border hover:bg-muted rounded transition-colors flex-shrink-0"
-          title="Close"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleToggleWatchlist}
+            className={`w-7 h-7 flex items-center justify-center border border-border hover:bg-muted rounded transition-colors flex-shrink-0 ${
+              isWatched ? 'bg-terminal-accent/20 border-terminal-accent text-terminal-accent' : ''
+            }`}
+            title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+          >
+            <Star className={`w-3.5 h-3.5 ${isWatched ? 'fill-terminal-accent' : ''}`} />
+          </button>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center border border-border hover:bg-muted rounded transition-colors flex-shrink-0"
+            title="Close"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Content - Scrollable */}

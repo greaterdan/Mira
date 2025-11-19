@@ -80,7 +80,7 @@ export const LoginButton = ({
         console.warn('Rejected message from unauthorized origin:', event.origin);
         return;
       }
-      
+
       if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
         clearInterval(checkPopup);
         popup.close();
@@ -103,12 +103,12 @@ export const LoginButton = ({
       if (!popup.closed) {
         clearInterval(checkPopup);
         popup.close();
-        setIsConnecting(false);
+      setIsConnecting(false);
         window.removeEventListener('message', messageHandler);
       }
     }, 5 * 60 * 1000);
   };
-  
+
   const checkAuthStatus = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
@@ -161,8 +161,8 @@ export const LoginButton = ({
     } catch (error) {
         // Silently fail - user might not be logged in
         console.debug('Auth check failed:', error);
-      }
-    };
+    }
+  };
 
     // Check on mount if already logged in
     checkAuth();

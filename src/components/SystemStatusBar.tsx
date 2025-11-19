@@ -4,18 +4,20 @@ import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet, getStoredWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check } from "lucide-react";
+import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check, Star } from "lucide-react";
 
 interface SystemStatusBarProps {
   onToggleWaitlist?: () => void;
   onTogglePerformance?: () => void;
   onToggleSummary?: () => void;
   onToggleNewsFeed?: () => void;
+  onToggleWatchlist?: () => void;
   onLogout?: () => void;
   isPerformanceOpen?: boolean;
   isSummaryOpen?: boolean;
   showNewsFeed?: boolean;
   showWaitlist?: boolean;
+  showWatchlist?: boolean;
 }
 
 export const SystemStatusBar = ({ 
@@ -24,10 +26,12 @@ export const SystemStatusBar = ({
   showWaitlist, 
   onToggleSummary,
   onToggleNewsFeed,
+  onToggleWatchlist,
   onLogout,
   isPerformanceOpen = true,
   isSummaryOpen = true,
-  showNewsFeed = false
+  showNewsFeed = false,
+  showWatchlist = false
 }: SystemStatusBarProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
@@ -60,26 +64,26 @@ export const SystemStatusBar = ({
           const data = await response.json();
           if (data.authenticated && data.user?.email) {
             // User is logged in via OAuth session
-            setIsLoggedIn(true);
+      setIsLoggedIn(true);
             setUserEmail(data.user.email);
             // Update localStorage to match server session
             localStorage.setItem('userEmail', data.user.email);
-            
+      
             // Get or create wallet for this email
             // This ensures the same email always gets the same wallet
             let wallet = getStoredWallet(data.user.email);
-            
-            if (!wallet) {
+      
+      if (!wallet) {
               wallet = getOrCreateWallet(data.user.email);
-            }
+      }
             
             // Store as custodial wallet for persistence
             storeCustodialWallet(wallet);
-            
-            setCustodialWallet({
-              publicKey: wallet.publicKey,
-              privateKey: wallet.privateKey,
-            });
+      
+      setCustodialWallet({
+        publicKey: wallet.publicKey,
+        privateKey: wallet.privateKey,
+      });
             return; // Exit early if authenticated
           }
         }
@@ -97,15 +101,15 @@ export const SystemStatusBar = ({
         
         // Check if there's a stored custodial wallet (for backwards compatibility)
         // but don't set logged in state
-        const storedCustodialWallet = getCustodialWallet();
-        if (storedCustodialWallet) {
-          setCustodialWallet({
-            publicKey: storedCustodialWallet.publicKey,
-            privateKey: storedCustodialWallet.privateKey,
-          });
+      const storedCustodialWallet = getCustodialWallet();
+      if (storedCustodialWallet) {
+        setCustodialWallet({
+          publicKey: storedCustodialWallet.publicKey,
+          privateKey: storedCustodialWallet.privateKey,
+        });
         } else {
           setCustodialWallet(null);
-        }
+    }
       } catch (error) {
         // Network error or server unavailable
         console.debug('Auth check failed:', error);
@@ -295,13 +299,26 @@ export const SystemStatusBar = ({
             size="sm"
             onClick={onToggleSummary}
             className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
-            isSummaryOpen && !showNewsFeed && !showWaitlist
+            isSummaryOpen && !showNewsFeed && !showWaitlist && !showWatchlist
                 ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
                 : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
             }`}
             title="Summary"
           >
             <Users className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleWatchlist}
+            className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+            showWatchlist && isSummaryOpen && !showNewsFeed && !showWaitlist
+                ? 'bg-terminal-accent/20 border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/30' 
+                : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+            }`}
+            title="Watchlist"
+          >
+            <Star className={`w-3.5 h-3.5 ${showWatchlist ? 'fill-terminal-accent' : ''}`} />
           </Button>
         <Button
           variant="outline"
@@ -317,19 +334,19 @@ export const SystemStatusBar = ({
           <Newspaper className="w-3.5 h-3.5" />
         </Button>
         {isLoggedIn && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleWaitlist}
-            className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
-              showWaitlist && isSummaryOpen && !showNewsFeed
-                ? 'border-terminal-accent bg-terminal-accent/20 text-terminal-accent hover:bg-terminal-accent/30'
-                : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
-            }`}
-            title="Join Waitlist"
-          >
-            <Bot className="w-3.5 h-3.5" />
-          </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onToggleWaitlist}
+          className={`h-7 w-7 p-0 border-border rounded-full transition-colors ${
+            showWaitlist && isSummaryOpen && !showNewsFeed
+              ? 'border-terminal-accent bg-terminal-accent/20 text-terminal-accent hover:bg-terminal-accent/30'
+              : 'bg-background hover:bg-bg-elevated text-foreground hover:text-foreground'
+          }`}
+          title="Join Waitlist"
+        >
+          <Bot className="w-3.5 h-3.5" />
+        </Button>
         )}
         {custodialWallet && (
           <CustodialWallet
