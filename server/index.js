@@ -999,14 +999,14 @@ const fetchGNews = async () => {
       const data = await response.json();
       
       if (data.articles && Array.isArray(data.articles)) {
-        // Filter to only articles from last 24 hours (double-check)
+        // Filter to only articles from last 7 days (relaxed from 24 hours)
         const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         
         const filteredArticles = data.articles.filter(article => {
           if (!article.publishedAt && !article.pubDate) return false;
           const publishedDate = new Date(article.publishedAt || article.pubDate);
-          return publishedDate >= twentyFourHoursAgo;
+          return publishedDate >= sevenDaysAgo;
         });
         
         allArticles.push(...filteredArticles);
