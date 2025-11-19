@@ -18,9 +18,10 @@ interface AgentCacheEntry {
 }
 
 /**
- * Cache TTL: 5 seconds (very short to ensure fresh market selection and prevent repetitive trades)
+ * Cache TTL: 30 seconds (balance between freshness and performance)
+ * Summary requests use cached data, individual agent requests can regenerate if needed
  */
-const CACHE_TTL_MS = 5 * 1000;
+const CACHE_TTL_MS = 30 * 1000;
 
 /**
  * In-memory cache: agentId -> cache entry
@@ -66,21 +67,8 @@ export function getCachedAgentTrades(
   }
   
   // Cache hit - return cached trades
-  // BUT: Always invalidate if cache is older than 3 seconds to ensure fresh market selection
-  const ageSeconds = age / 1000;
-  if (ageSeconds > 3) {
-    console.log(`[Cache:${agentId}] ⚠️ Cache age ${ageSeconds.toFixed(1)}s > 3s - invalidating for fresh market research`);
-    agentCache.delete(agentId);
-    return null; // Force regeneration for fresh market selection
-  }
-  
-  // Don't return cached empty array if it's been less than 3 seconds (might be a transient issue)
-  if (entry.trades.length === 0 && ageSeconds < 3) {
-    console.log(`[Cache:${agentId}] ⚠️ Cache has 0 trades but age is only ${ageSeconds.toFixed(1)}s - invalidating to retry`);
-    agentCache.delete(agentId);
-    return null; // Force regeneration
-  }
-  
+  // For summary requests, we can use older cache (up to TTL)
+  // For individual requests, we might want fresher data, but that's handled by the caller
   return entry.trades;
 }
 
@@ -104,6 +92,30 @@ export function setCachedAgentTrades(
     marketIds: [...marketIds], // Copy array
   });
   console.log(`[Cache:${agentId}] 💾 Cached ${trades.length} trades for ${marketIds.length} markets`);
+}
+
+/**
+ * Get cached trades without market ID validation (for summary/quick access)
+ * This is faster as it doesn't require fetching markets first
+ * 
+ * @param agentId - Agent identifier
+ * @returns Cached trades or null if cache miss/expired
+ */
+export function getCachedTradesQuick(agentId: AgentId): AgentTrade[] | null {
+  const entry = agentCache.get(agentId);
+  
+  if (!entry) {
+    return null; // Cache miss
+  }
+  
+  // Check TTL only (no market ID validation for speed)
+  const age = Date.now() - entry.generatedAt;
+  if (age >= CACHE_TTL_MS) {
+    agentCache.delete(agentId);
+    return null; // Cache expired
+  }
+  
+  return entry.trades;
 }
 
 /**

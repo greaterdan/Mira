@@ -199,12 +199,28 @@ export async function getAgentsSummary(req, res) {
     const agentIds = ALL_AGENT_IDS || Object.keys(agentIdMap || {});
     console.log(`[API:${req.id}] 🤖 Generating trades for ${agentIds.length} agents: ${agentIds.join(', ')}`);
     
-    // Fetch trades for all agents in parallel
+    // Try to get cached trades first (much faster for summary)
+    // Only regenerate if cache is empty/expired
     const results = await Promise.allSettled(
-      agentIds.map(agentId => generateAgentTrades(agentId).catch(err => {
-        console.warn(`[API] Failed to get trades for agent ${agentId} for summary: ${err.message}`);
-        return []; // Return empty array for failed agents
-      }))
+      agentIds.map(async (agentId) => {
+        try {
+          // Import cache module to get quick cached trades
+          const cacheModule = await import('../../src/lib/agents/cache.ts');
+          const cached = cacheModule.getCachedTradesQuick?.(agentId);
+          
+          if (cached && cached.length > 0) {
+            console.log(`[API:${req.id}] 💾 Using cached trades for ${agentId}: ${cached.length} trades`);
+            return cached;
+          }
+          
+          // Cache miss or empty - generate new trades (but this is slow)
+          console.log(`[API:${req.id}] ⚠️ Cache miss for ${agentId} - generating trades (this may take time)`);
+          return await generateAgentTrades(agentId);
+        } catch (err) {
+          console.warn(`[API] Failed to get trades for agent ${agentId} for summary: ${err.message}`);
+          return []; // Return empty array for failed agents
+        }
+      })
     );
     
     const allTrades = results.map(r => r.status === 'fulfilled' ? r.value : []);
