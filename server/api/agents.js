@@ -128,13 +128,13 @@ export async function getAgentTrades(req, res) {
     const mappedTrades = trades.map(trade => ({
       id: trade.id,
       timestamp: new Date(trade.openedAt),
-      market: trade.marketId, // Will need market question from market data
+      market: trade.marketQuestion || trade.marketId, // Use marketQuestion if available, fallback to marketId
       decision: trade.side,
       confidence: Math.round(trade.confidence * 100),
       reasoning: trade.reasoning.join(' '),
       pnl: trade.pnl,
       status: trade.status,
-      predictionId: trade.marketId, // Use marketId as predictionId
+      predictionId: trade.marketId, // Use marketId as predictionId for matching
     }));
     
     const duration = Date.now() - requestStart;
