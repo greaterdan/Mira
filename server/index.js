@@ -897,14 +897,14 @@ const fetchNewsData = async () => {
       const data = await response.json();
       
       if (data.status === 'success' && data.results) {
-        // Filter to only articles from last 24 hours (double-check)
+        // Filter to only articles from last 7 days (double-check)
         const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         
         return data.results.filter(article => {
           if (!article.pubDate) return false;
           const publishedDate = new Date(article.pubDate);
-          return publishedDate >= twentyFourHoursAgo;
+          return publishedDate >= sevenDaysAgo;
         });
       }
       
@@ -1124,6 +1124,11 @@ app.get('/api/news', async (req, res) => {
         timestamp: Date.now(),
         CACHE_DURATION: 2 * 60 * 1000, // 2 minutes instead of 5
       };
+      
+      // Log news fetch results (sampled at 10% to reduce log spam)
+      if (Math.random() < 0.1) {
+        console.log(`[NEWS] Fetched ${allArticles.length} articles (${responseData.sources.newsapi} from NewsAPI, ${responseData.sources.newsdata} from NewsData, ${responseData.sources.gnews} from GNews)`);
+      }
       
     // Filter by source if needed
     if (source !== 'all') {
