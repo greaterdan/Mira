@@ -1081,6 +1081,9 @@ const Index = () => {
                 <MarketDetailsPanel
                   market={selectedPrediction}
                   onClose={handleCloseMarketDetails}
+                  onWatchlistChange={() => {
+                    setWatchlist(getWatchlist());
+                  }}
                 />
               ) : (
                 <PerformanceChart 
