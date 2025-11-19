@@ -228,27 +228,48 @@ if (redisUrl) {
     // Create Redis client
     const redisClient = createClient({
       url: redisUrl,
+      socket: {
+        reconnectStrategy: (retries) => {
+          // Don't block server startup if Redis fails
+          if (retries > 3) {
+            console.warn('⚠️  Redis connection failed after 3 retries, falling back to MemoryStore');
+            return false; // Stop retrying
+          }
+          return Math.min(retries * 100, 3000); // Exponential backoff
+        },
+      },
     });
     
     redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
+      // Don't crash on Redis errors - just log and continue
+      console.error('Redis Client Error:', err.message);
     });
     
-    // Connect to Redis (don't await - let it connect in background)
-    redisClient.connect().catch((err) => {
-      console.error('Failed to connect to Redis:', err);
-      console.warn('⚠️  Falling back to MemoryStore (not recommended for production)');
+    redisClient.on('connect', () => {
+      console.log('✅ Redis connected');
     });
     
-    // Use Redis store
-    sessionStore = new RedisStore({
-      client: redisClient,
-      prefix: 'probly:sess:',
+    // Try to connect to Redis (non-blocking)
+    redisClient.connect().then(() => {
+      console.log('✅ Using Redis for session storage');
+    }).catch((err) => {
+      console.warn('⚠️  Redis connection failed, falling back to MemoryStore:', err.message);
+      console.warn('   Server will continue without Redis (sessions may be lost on restart)');
+      sessionStore = undefined; // Fall back to MemoryStore
     });
     
-    console.log('✅ Using Redis for session storage');
+    // Use Redis store (even if not connected yet - it will retry)
+    try {
+      sessionStore = new RedisStore({
+        client: redisClient,
+        prefix: 'probly:sess:',
+      });
+    } catch (storeError) {
+      console.warn('⚠️  Failed to create RedisStore, using MemoryStore:', storeError.message);
+      sessionStore = undefined;
+    }
   } catch (error) {
-    console.error('Failed to initialize Redis store:', error);
+    console.error('Failed to initialize Redis:', error.message);
     console.warn('⚠️  Falling back to MemoryStore (not recommended for production)');
     sessionStore = undefined; // Will use default MemoryStore
   }
