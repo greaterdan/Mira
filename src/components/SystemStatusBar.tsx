@@ -4,11 +4,7 @@ import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check, Filter, Search, ChevronDown, X } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check } from "lucide-react";
 
 interface SystemStatusBarProps {
   onToggleWaitlist?: () => void;
@@ -19,25 +15,6 @@ interface SystemStatusBarProps {
   isSummaryOpen?: boolean;
   showNewsFeed?: boolean;
   showWaitlist?: boolean;
-  selectedCategory?: string;
-  setSelectedCategory?: (category: string) => void;
-  filters?: {
-    minVolume: string;
-    maxVolume: string;
-    minLiquidity: string;
-    maxLiquidity: string;
-    minPrice: string;
-    maxPrice: string;
-    minProbability: string;
-    maxProbability: string;
-    sortBy: 'volume' | 'liquidity' | 'price' | 'probability' | 'none';
-    sortOrder: 'asc' | 'desc';
-  };
-  setFilters?: (filters: any) => void;
-  searchQuery?: string;
-  setSearchQuery?: (query: string) => void;
-  marketCategories?: string[];
-  loadingMarkets?: boolean;
 }
 
 export const SystemStatusBar = ({ 
@@ -48,15 +25,7 @@ export const SystemStatusBar = ({
   onToggleNewsFeed,
   isPerformanceOpen = true,
   isSummaryOpen = true,
-  showNewsFeed = false,
-  selectedCategory = 'All Markets',
-  setSelectedCategory,
-  filters,
-  setFilters,
-  searchQuery = '',
-  setSearchQuery,
-  marketCategories = [],
-  loadingMarkets = false,
+  showNewsFeed = false
 }: SystemStatusBarProps) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>();
@@ -163,242 +132,100 @@ export const SystemStatusBar = ({
       {/* Left side - empty */}
       <div className="flex items-center gap-2"></div>
 
-      {/* Center - Dashboard Controls - Absolutely centered */}
+      {/* Center - GitHub, README, Contact - Absolutely centered */}
       <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
-        {/* Category Dropdown */}
-        {setSelectedCategory && marketCategories.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors border border-border bg-background rounded-full h-7">
-              {selectedCategory}
-              <ChevronDown className="h-3 w-3 opacity-50" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-48 bg-background border-border z-50 rounded-xl">
-              {marketCategories.map((category) => (
-                <DropdownMenuItem
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`cursor-pointer ${selectedCategory === category ? 'bg-muted text-primary font-medium' : ''}`}
-                >
-                  {category}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        
-        {/* Filter Button */}
-        {setFilters && filters && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="flex items-center gap-1.5 px-2.5 py-1 h-7 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                <span>Filters</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="center" 
-              className="w-[320px] max-h-[85vh] overflow-y-auto p-2"
-              onCloseAutoFocus={(e) => e.preventDefault()}
-            >
+        <Button
+          variant="outline"
+          size="sm"
+          disabled
+          className="h-7 w-7 p-0 border-border bg-background text-foreground rounded-full cursor-default"
+          title="GitHub"
+        >
+          <Github className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('https://x.com/Problytech', '_blank', 'noopener,noreferrer')}
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="X (Twitter)"
+        >
+          <svg 
+            viewBox="0 0 24 24" 
+            className="w-3.5 h-3.5 fill-current"
+            aria-label="X"
+          >
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('https://github.com/greaterdan/aura-predict/blob/main/README.md', '_blank', 'noopener,noreferrer')}
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="README"
+        >
+          <FileText className="w-3.5 h-3.5" />
+        </Button>
+        <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+          <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
+          title="Contact"
+        >
+          <Mail className="w-3.5 h-3.5" />
+        </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md bg-background border-border">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">Contact Us</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Have a question or feedback? Reach out to our development team.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                {/* Volume Filters */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Volume</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="Min $"
-                        value={filters.minVolume}
-                        onChange={(e) => setFilters({...filters, minVolume: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="Max $"
-                        value={filters.maxVolume}
-                        onChange={(e) => setFilters({...filters, maxVolume: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Development Email
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 bg-muted rounded-md border border-border font-mono text-sm">
+                    {devEmail}
                   </div>
-                </div>
-                
-                {/* Liquidity Filters */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Liquidity</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="Min $"
-                        value={filters.minLiquidity}
-                        onChange={(e) => setFilters({...filters, minLiquidity: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder="Max $"
-                        value={filters.maxLiquidity}
-                        onChange={(e) => setFilters({...filters, maxLiquidity: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Price Filters */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Price</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="1"
-                        placeholder="Min 0.00"
-                        value={filters.minPrice}
-                        onChange={(e) => setFilters({...filters, minPrice: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="1"
-                        placeholder="Max 1.00"
-                        value={filters.maxPrice}
-                        onChange={(e) => setFilters({...filters, maxPrice: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Probability Filters */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Probability</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        max="100"
-                        placeholder="Min %"
-                        value={filters.minProbability}
-                        onChange={(e) => setFilters({...filters, minProbability: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        max="100"
-                        placeholder="Max %"
-                        value={filters.maxProbability}
-                        onChange={(e) => setFilters({...filters, maxProbability: e.target.value})}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Sort Options */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Sort</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <Select
-                      value={filters.sortBy}
-                      onValueChange={(value: any) => setFilters({...filters, sortBy: value})}
-                    >
-                      <SelectTrigger className="h-7 text-xs">
-                        <SelectValue placeholder="Field" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="volume">Volume</SelectItem>
-                        <SelectItem value="liquidity">Liquidity</SelectItem>
-                        <SelectItem value="price">Price</SelectItem>
-                        <SelectItem value="probability">Probability</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={filters.sortOrder}
-                      onValueChange={(value: any) => setFilters({...filters, sortOrder: value})}
-                    >
-                      <SelectTrigger className="h-7 text-xs">
-                        <SelectValue placeholder="Order" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="desc">Desc</SelectItem>
-                        <SelectItem value="asc">Asc</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                {/* Action Button */}
-                <div className="pt-0.5">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFilters({
-                        minVolume: '',
-                        maxVolume: '',
-                        minLiquidity: '',
-                        maxLiquidity: '',
-                        minPrice: '',
-                        maxPrice: '',
-                        minProbability: '',
-                        maxProbability: '',
-                        sortBy: 'none',
-                        sortOrder: 'desc',
-                      });
-                    }}
-                    className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={handleCopyEmail}
+                    className="h-9 px-3"
                   >
-                    <X className="h-3 w-3 mr-1" />
-                    Clear
+                    {emailCopied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1.5" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1.5" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => window.open(`mailto:${devEmail}`, '_blank')}
+                    className="h-9 px-3"
+                  >
+                    <Mail className="w-4 h-4 mr-1.5" />
+                    Email
                   </Button>
                 </div>
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        
-        {/* Search Bar */}
-        {setSearchQuery && (
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search markets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 pl-9 pr-3 text-xs bg-background border-border focus:border-terminal-accent transition-colors rounded-full"
-            />
-          </div>
-        )}
-        
-        {loadingMarkets && (
-          <span className="text-[10px] text-muted-foreground font-mono">(Loading...)</span>
-        )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Right side - Performance, Summary, News Feed, Build Agent, Wallet, Login */}
