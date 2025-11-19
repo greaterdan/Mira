@@ -66,15 +66,22 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
   const marketsWithBoth = markets.filter(m => m.volumeUsd >= agent.minVolume && m.liquidityUsd >= agent.minLiquidity).length;
   console.log(`[Agent:${agentId}] 📊 Market stats: ${totalMarkets} total, ${marketsWithVolume} meet volume, ${marketsWithLiquidity} meet liquidity, ${marketsWithBoth} meet both`);
   
-  // Filter to only markets with valid condition_ids (must match prediction IDs)
+  // Filter to only markets with real condition_ids (must match prediction IDs)
   // This ensures all trades are clickable and match existing predictions
+  // Only trade markets that exist in Polymarket (not generated IDs)
   const validMarkets = markets.filter(m => {
-    // Market ID must be a valid condition_id (numeric string or valid ID format)
-    // This ensures it matches prediction IDs from the bubble maps
+    // Market ID must exist and not be a generated ID
+    // Generated IDs start with 'market-' and are fallbacks for markets without condition_id
+    // We only want to trade real Polymarket markets with actual condition_ids
     return m.id && m.id.trim() !== '' && !m.id.startsWith('market-');
   });
   
-  console.log(`[Agent:${agentId}] 🔍 Filtered to ${validMarkets.length} markets with valid IDs (from ${markets.length} total)`);
+  console.log(`[Agent:${agentId}] 🔍 Filtered to ${validMarkets.length} markets with real condition_ids (from ${markets.length} total)`);
+  
+  if (validMarkets.length === 0) {
+    console.warn(`[Agent:${agentId}] ⚠️ No valid markets found with condition_ids - cannot generate trades`);
+    return [];
+  }
   
   const candidates = filterCandidateMarkets(agent, validMarkets);
   console.log(`[Agent:${agentId}] ✅ Found ${candidates.length} candidate markets with valid IDs`);

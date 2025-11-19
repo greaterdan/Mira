@@ -133,14 +133,26 @@ export async function fetchAllMarkets(): Promise<Market[]> {
       const markets = rawMarkets.map((rawMarket: any) => {
         const actualMarket = rawMarket.market || rawMarket;
         
-        // Extract condition_id using EXACT same logic as predictions (marketTransformer.js line 235-240, 624-628)
+        // Extract market ID using EXACT same logic as predictions (marketTransformer.js line 624-635)
         // This ensures market IDs match prediction IDs exactly
-        const conditionId = actualMarket.condition_id || 
-                           actualMarket.event?.condition_id ||
-                           rawMarket.condition_id ||
-                           actualMarket.conditionId || 
-                           actualMarket.id ||
-                           rawMarket.id;
+        let marketId = actualMarket.condition_id || 
+                      actualMarket.question_id || 
+                      actualMarket.slug || 
+                      actualMarket.id ||
+                      actualMarket.market_id ||
+                      rawMarket.condition_id ||
+                      rawMarket.id;
+        
+        // If no ID found, generate one using EXACT same logic as predictions (line 630-635)
+        if (!marketId) {
+          const question = actualMarket.question || actualMarket.title || '';
+          if (question) {
+            const questionHash = question.split('').reduce((acc: number, char: string) => {
+              return ((acc << 5) - acc) + char.charCodeAt(0);
+            }, 0);
+            marketId = `market-${question.substring(0, 30).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${Math.abs(questionHash).toString(36)}`;
+          }
+        }
         
         const question = actualMarket.question || actualMarket.title || '';
         const volume = parseFloat(actualMarket.volume || actualMarket.volume24h || '0');
@@ -158,15 +170,15 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           categoryValue = typeof firstTag === 'string' ? firstTag : String(firstTag);
         }
         
-        // Use condition_id as ID - MUST match prediction IDs exactly
-        // Predictions use: condition_id || question_id || slug || id (marketTransformer.js line 624-628)
-        // We use condition_id only to ensure exact matching
-        const marketId = conditionId ? String(conditionId) : null;
-        
-        if (!marketId) {
-          // Skip markets without valid condition_id (must match predictions)
+        // Use marketId - MUST match prediction IDs exactly
+        // Only trade markets with real condition_id (not generated IDs)
+        // This ensures trades match actual Polymarket markets
+        if (!marketId || marketId.startsWith('market-')) {
+          // Skip markets with generated IDs (only trade real Polymarket markets)
           return null;
         }
+        
+        marketId = String(marketId);
         
         return {
           id: marketId, // Use condition_id to match prediction IDs
