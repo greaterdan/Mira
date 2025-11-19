@@ -268,9 +268,85 @@ const formatTimeAgo = (date: Date) => {
 };
 
 export const AISummaryPanel = () => {
-  const [decisions, setDecisions] = useState(mockDecisions);
+  const [decisions, setDecisions] = useState<AIDecision[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch agent summary from API
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        setLoading(true);
+        const { API_BASE_URL } = await import('@/lib/apiConfig');
+        const response = await fetch(`${API_BASE_URL}/api/agents/summary`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Convert API data to AIDecision format
+          const newDecisions: AIDecision[] = [];
+          
+          if (data.summary?.agentSummaries) {
+            for (const agentSummary of data.summary.agentSummaries) {
+              const agentId = agentSummary.agentId;
+              const trades = data.tradesByAgent?.[agentId] || [];
+              
+              // Get most recent trade
+              const recentTrade = trades
+                .filter((t: any) => t.status === 'OPEN')
+                .sort((a: any, b: any) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime())[0];
+              
+              if (recentTrade) {
+                const agent = data.agents?.find((a: any) => a.id === agentId);
+                newDecisions.push({
+                  id: agentId,
+                  agentName: agent?.displayName || agentId,
+                  agentEmoji: agent?.avatar || '🤖',
+                  timestamp: new Date(recentTrade.openedAt),
+                  action: 'TRADE',
+                  market: recentTrade.marketId || 'Unknown Market',
+                  decision: recentTrade.side,
+                  confidence: Math.round(recentTrade.confidence * 100),
+                  reasoning: Array.isArray(recentTrade.reasoning) 
+                    ? recentTrade.reasoning.join(' ') 
+                    : recentTrade.reasoning || 'No reasoning provided',
+                  decisionHistory: trades
+                    .filter((t: any) => t.status === 'OPEN')
+                    .slice(0, 3)
+                    .map((t: any) => ({
+                      id: t.id,
+                      timestamp: new Date(t.openedAt),
+                      market: t.marketId || 'Unknown Market',
+                      decision: t.side,
+                      confidence: Math.round(t.confidence * 100),
+                      reasoning: Array.isArray(t.reasoning) 
+                        ? t.reasoning.join(' ') 
+                        : t.reasoning || 'No reasoning provided',
+                    })),
+                });
+              }
+            }
+          }
+          
+          // Sort by timestamp (most recent first)
+          newDecisions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          setDecisions(newDecisions);
+        }
+      } catch (error) {
+        console.error('Failed to fetch agent summary:', error);
+        // Fallback to empty array
+        setDecisions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSummary();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadSummary, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -487,4 +563,5 @@ export const AISummaryPanel = () => {
     </div>
   );
 };
+
 

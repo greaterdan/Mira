@@ -33,16 +33,17 @@ interface Agent {
   lastTrade: string;
 }
 
-const mockAgents: Agent[] = [
-  { id: "grok", name: "GROK 4", emoji: "🔥", isActive: false, pnl: -63.0, openMarkets: 139, lastTrade: "NO on AI Sentience @ $0.40" },
-  { id: "gpt5", name: "GPT-5", emoji: "✨", isActive: true, pnl: -83.7, openMarkets: 60, lastTrade: "YES on Quantum Chip @ $0.24" },
-  { id: "deepseek", name: "DEEPSEEK V3", emoji: "🔮", isActive: false, pnl: 16.4, openMarkets: 23, lastTrade: "YES on ETH $3,500 @ $0.72" },
-  { id: "gemini", name: "GEMINI 2.5", emoji: "♊", isActive: false, pnl: -30.2, openMarkets: 101, lastTrade: "NO on Mars Mission @ $0.39" },
-  { id: "claude", name: "CLAUDE 4.5", emoji: "🧠", isActive: false, pnl: 16.2, openMarkets: 158, lastTrade: "YES on Fed Rate Cut @ $0.66" },
-  { id: "qwen", name: "QWEN 2.5", emoji: "🤖", isActive: false, pnl: 7.9, openMarkets: 219, lastTrade: "NO on Trump 2028 @ $0.34" },
+// Initial agent data - will be replaced by API call
+const initialAgents: Agent[] = [
+  { id: "grok", name: "GROK 4", emoji: "🔥", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
+  { id: "gpt5", name: "GPT-5", emoji: "✨", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
+  { id: "deepseek", name: "DEEPSEEK V3", emoji: "🔮", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
+  { id: "gemini", name: "GEMINI 2.5", emoji: "♊", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
+  { id: "claude", name: "CLAUDE 4.5", emoji: "🧠", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
+  { id: "qwen", name: "QWEN 2.5", emoji: "🤖", isActive: false, pnl: 0, openMarkets: 0, lastTrade: "Loading..." },
 ];
 
-// Agent trading system - generates trades from actual predictions
+// Agent trading system - uses API to fetch real trades
 interface Trade {
   id: string;
   timestamp: Date;
@@ -66,276 +67,70 @@ interface NewsArticle {
   sourceApi?: string;
 }
 
-// Generate trades for agents based on actual predictions, news, volume, and metrics
+// Fetch trades from API instead of generating locally
+const fetchAgentTrades = async (agentId: string): Promise<Trade[]> => {
+  try {
+    const { API_BASE_URL } = await import('@/lib/apiConfig');
+    const response = await fetch(`${API_BASE_URL}/api/agents/${agentId}/trades`);
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch trades for ${agentId}:`, response.statusText);
+      return [];
+    }
+    
+    const data = await response.json();
+    return (data.trades || []).map((trade: any) => ({
+      id: trade.id,
+      timestamp: new Date(trade.timestamp || trade.openedAt),
+      market: trade.market || trade.marketId,
+      marketSlug: trade.marketSlug,
+      conditionId: trade.conditionId,
+      decision: trade.decision || trade.side,
+      confidence: typeof trade.confidence === 'number' ? trade.confidence : parseInt(trade.confidence) || 0,
+      reasoning: typeof trade.reasoning === 'string' ? trade.reasoning : (Array.isArray(trade.reasoning) ? trade.reasoning.join(' ') : ''),
+      pnl: trade.pnl,
+      status: trade.status || 'OPEN',
+      predictionId: trade.predictionId || trade.marketId,
+    }));
+  } catch (error) {
+    console.error(`Error fetching trades for ${agentId}:`, error);
+    return [];
+  }
+};
+
+// Legacy function - DEPRECATED: All trades now come from API via fetchAgentTrades
+// This function is kept for type compatibility but always returns empty array
 const generateAgentTrades = (
   agentId: string,
   predictions: PredictionNodeData[],
   newsArticles: NewsArticle[] = []
 ): Trade[] => {
-  if (predictions.length === 0) return [];
-  
-  const trades: Trade[] = [];
-  const now = Date.now();
-  
-  // Agent-specific trading strategies
-  const agentStrategies: Record<string, {
-    minVolume: number;
-    minLiquidity: number;
-    maxTrades: number;
-    riskTolerance: 'low' | 'medium' | 'high';
-    focusCategories?: string[];
-  }> = {
-    grok: {
-      minVolume: 50000,
-      minLiquidity: 10000,
-      maxTrades: 5,
-      riskTolerance: 'high',
-      focusCategories: ['Crypto', 'Tech', 'Politics'],
-    },
-    gpt5: {
-      minVolume: 100000,
-      minLiquidity: 20000,
-      maxTrades: 4,
-      riskTolerance: 'medium',
-      focusCategories: ['Tech', 'Finance', 'Crypto'],
-    },
-    deepseek: {
-      minVolume: 75000,
-      minLiquidity: 15000,
-      maxTrades: 6,
-      riskTolerance: 'medium',
-      focusCategories: ['Crypto', 'Finance', 'Elections'],
-    },
-    gemini: {
-      minVolume: 30000,
-      minLiquidity: 5000,
-      maxTrades: 7,
-      riskTolerance: 'high',
-      focusCategories: ['Sports', 'Entertainment', 'World'],
-    },
-    claude: {
-      minVolume: 80000,
-      minLiquidity: 18000,
-      maxTrades: 5,
-      riskTolerance: 'low',
-      focusCategories: ['Finance', 'Politics', 'Elections'],
-    },
-    qwen: {
-      minVolume: 60000,
-      minLiquidity: 12000,
-      maxTrades: 6,
-      riskTolerance: 'medium',
-      focusCategories: ['Finance', 'Geopolitics', 'World'],
-    },
-  };
-  
-  const strategy = agentStrategies[agentId] || agentStrategies.grok;
-  
-  // Filter predictions based on agent strategy
-  let candidatePredictions = predictions.filter(p => {
-    const volume = typeof p.volume === 'string' ? parseFloat(p.volume) : (p.volume || 0);
-    const liquidity = typeof p.liquidity === 'string' ? parseFloat(p.liquidity) : (p.liquidity || 0);
-    
-    // Volume and liquidity filters
-    if (volume < strategy.minVolume || liquidity < strategy.minLiquidity) {
-      return false;
-    }
-    
-    // Category filter if specified
-    if (strategy.focusCategories && p.category) {
-      const categoryMap: Record<string, string> = {
-        'Crypto': 'Crypto',
-        'Finance': 'Finance',
-        'Tech': 'Tech',
-        'Politics': 'Politics',
-        'Elections': 'Elections',
-        'Sports': 'Sports',
-        'Entertainment': 'Entertainment',
-        'World': 'World',
-        'Geopolitics': 'Geopolitics',
-      };
-      const mappedCategory = categoryMap[p.category] || p.category;
-      if (!strategy.focusCategories.includes(mappedCategory)) {
-        return false;
-      }
-    }
-    
-    return true;
-  });
-  
-  // Score predictions based on multiple factors
-  const scoredPredictions = candidatePredictions.map(prediction => {
-    let score = 0;
-    
-    // Volume score (higher volume = higher score)
-    const volume = typeof prediction.volume === 'string' ? parseFloat(prediction.volume) : (prediction.volume || 0);
-    score += Math.min(volume / 100000, 1) * 30; // Max 30 points
-    
-    // Liquidity score
-    const liquidity = typeof prediction.liquidity === 'string' ? parseFloat(prediction.liquidity) : (prediction.liquidity || 0);
-    score += Math.min(liquidity / 50000, 1) * 20; // Max 20 points
-    
-    // Price movement score (recent price changes indicate activity)
-    const priceChange = Math.abs(prediction.change || 0);
-    score += Math.min(priceChange * 10, 1) * 15; // Max 15 points
-    
-    // News relevance score
-    const predictionLower = prediction.question.toLowerCase();
-    const relevantNews = newsArticles.filter(article => {
-      const title = (article.title || '').toLowerCase();
-      const description = (article.description || '').toLowerCase();
-      const content = (article.content || '').toLowerCase();
-      const combined = `${title} ${description} ${content}`;
-      
-      // Extract key terms from prediction
-      const keyTerms = predictionLower
-        .split(/[\s\-_]+/)
-        .filter(w => w.length > 3 && !['will', 'the', 'that', 'this', 'with', 'from'].includes(w));
-      
-      // Check if any key term appears in news
-      return keyTerms.some(term => combined.includes(term));
-    });
-    score += Math.min(relevantNews.length * 5, 1) * 25; // Max 25 points (5 news = max)
-    
-    // Probability score (markets near 50% are more interesting for trading)
-    const prob = prediction.probability || 0.5;
-    const probScore = 1 - Math.abs(prob - 0.5) * 2; // Closer to 50% = higher score
-    score += probScore * 10; // Max 10 points
-    
-    return { prediction, score };
-  });
-  
-  // Sort by score and take top predictions
-  scoredPredictions.sort((a, b) => b.score - a.score);
-  const topPredictions = scoredPredictions.slice(0, strategy.maxTrades);
-  
-  // Generate trades for top predictions
-  // Use deterministic approach to ensure stable trades
-  topPredictions.forEach(({ prediction }, index) => {
-    // Use prediction ID hash for deterministic randomness
-    const predictionHash = prediction.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
-    // Determine decision based on probability and agent strategy
-    const prob = prediction.probability || 0.5;
-    let decision: "YES" | "NO";
-    let confidence: number;
-    
-    // Deterministic decision based on prediction ID and probability
-    const decisionSeed = (predictionHash + agentId.charCodeAt(0)) % 100;
-    if (prob > 0.6) {
-      decision = "YES";
-      confidence = Math.min(prob * 100 + (decisionSeed % 10 - 5), 95);
-    } else if (prob < 0.4) {
-      decision = "NO";
-      confidence = Math.min((1 - prob) * 100 + (decisionSeed % 10 - 5), 95);
-    } else {
-      // Near 50% - agent makes a call based on other factors
-      const volume = typeof prediction.volume === 'string' ? parseFloat(prediction.volume) : (prediction.volume || 0);
-      decision = volume > strategy.minVolume * 1.5 ? "YES" : "NO";
-      confidence = 50 + (decisionSeed % 20 - 10); // 40-60% confidence
-    }
-    
-    // Generate reasoning based on metrics
-    const volume = typeof prediction.volume === 'string' ? parseFloat(prediction.volume) : (prediction.volume || 0);
-    const liquidity = typeof prediction.liquidity === 'string' ? parseFloat(prediction.liquidity) : (prediction.liquidity || 0);
-    const priceChange = prediction.change || 0;
-    
-    let reasoning = "";
-    if (volume > strategy.minVolume * 2) {
-      reasoning += `High trading volume (${(volume / 1000).toFixed(0)}k) indicates strong market interest. `;
-    }
-    if (liquidity > strategy.minLiquidity * 1.5) {
-      reasoning += `Strong liquidity (${(liquidity / 1000).toFixed(0)}k) supports active trading. `;
-    }
-    if (Math.abs(priceChange) > 0.05) {
-      reasoning += `Recent price movement (${(priceChange * 100).toFixed(1)}%) suggests momentum shift. `;
-    }
-    
-    // Add news-based reasoning if available
-    const relevantNews = newsArticles.filter(article => {
-      const title = (article.title || '').toLowerCase();
-      const description = (article.description || '').toLowerCase();
-      const predictionLower = prediction.question.toLowerCase();
-      const keyTerms = predictionLower.split(/[\s\-_]+/).filter(w => w.length > 3);
-      return keyTerms.some(term => title.includes(term) || description.includes(term));
-    });
-    
-    if (relevantNews.length > 0) {
-      reasoning += `${relevantNews.length} recent news article${relevantNews.length > 1 ? 's' : ''} related to this market. `;
-    }
-    
-    if (!reasoning) {
-      reasoning = `Market analysis based on current probability (${(prob * 100).toFixed(0)}%) and trading metrics.`;
-    }
-    
-    // Determine status (mix of open and closed trades) - deterministic based on index
-    const isRecent = index < Math.ceil(strategy.maxTrades * 0.4); // 40% are recent/open
-    const status: "OPEN" | "CLOSED" = isRecent ? "OPEN" : "CLOSED";
-    
-    // Generate PnL for closed trades - deterministic
-    let pnl: number | undefined;
-    if (status === "CLOSED") {
-      const pnlSeed = (predictionHash * 7 + agentId.charCodeAt(0) * 3) % 1000;
-      const basePnL = (confidence / 100) * ((pnlSeed / 1000) * 5 + 1);
-      pnl = decision === "YES" && prob > 0.5 ? basePnL : -basePnL * 0.7;
-      pnl = parseFloat(pnl.toFixed(4));
-    }
-    
-    // Generate timestamp - deterministic based on prediction ID
-    const timeSeed = (predictionHash + index * 1000) % 10000;
-    const timestamp = isRecent
-      ? new Date(now - (timeSeed * 360 + 60000)) // 1 min to 1 hour ago (deterministic)
-      : new Date(now - (timeSeed * 720 + 1800000)); // 30 min to 2 hours ago (deterministic)
-    
-    trades.push({
-      id: `${agentId}-${prediction.id}`, // Stable ID based on agent + prediction (no index)
-      timestamp,
-      market: prediction.question,
-      marketSlug: prediction.marketSlug,
-      conditionId: prediction.conditionId,
-      decision,
-      confidence: Math.round(confidence),
-      reasoning: reasoning.trim(),
-      pnl,
-      status,
-      predictionId: prediction.id, // Always use actual prediction ID
-    });
-  });
-  
-  return trades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  // All trades should come from API - this is just for type compatibility
+  return [];
 };
 
-// Cache for agent trades to prevent regeneration on every render
-const agentTradesCache = new Map<string, { trades: Trade[]; timestamp: number; predictionIds: Set<string> }>();
+// Cache for agent trades from API
+const agentTradesCache = new Map<string, { trades: Trade[]; timestamp: number }>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
-// Get trades for a specific agent (uses cached trades if available)
-const getAgentTrades = (agentId: string, predictions: PredictionNodeData[], newsArticles: NewsArticle[] = []): Trade[] => {
+// Get trades for a specific agent (fetches from API with caching)
+const getAgentTrades = async (agentId: string): Promise<Trade[]> => {
   const cacheKey = agentId;
   const now = Date.now();
   const cached = agentTradesCache.get(cacheKey);
   
   // Check if cache is valid
   if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    // Check if prediction IDs changed (if so, regenerate)
-    const currentPredictionIds = new Set(predictions.map(p => p.id));
-    const idsMatch = cached.predictionIds.size === currentPredictionIds.size &&
-                     [...cached.predictionIds].every(id => currentPredictionIds.has(id));
-    
-    if (idsMatch) {
-      return cached.trades; // Return cached trades
-    }
+    return cached.trades; // Return cached trades
   }
   
-  // Generate new trades
-  const trades = generateAgentTrades(agentId, predictions, newsArticles);
-  const predictionIds = new Set(predictions.map(p => p.id));
+  // Fetch new trades from API
+  const trades = await fetchAgentTrades(agentId);
   
   // Cache the trades
   agentTradesCache.set(cacheKey, {
     trades,
     timestamp: now,
-    predictionIds,
   });
   
   return trades;
@@ -345,7 +140,8 @@ const getAgentTrades = (agentId: string, predictions: PredictionNodeData[], news
 
 const Index = () => {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [agents, setAgents] = useState(mockAgents);
+  const [agents, setAgents] = useState(initialAgents);
+  const [agentTrades, setAgentTrades] = useState<Record<string, Trade[]>>({});
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   // Track if performance panel was auto-opened from a bubble click (when both panels were closed)
   const performancePanelAutoOpenedRef = useRef(false);
@@ -628,28 +424,60 @@ const Index = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Simulate AI trading activity
+  // Fetch agent summary data from API
+  useEffect(() => {
+    const loadAgentsSummary = async () => {
+      try {
+        const { API_BASE_URL } = await import('@/lib/apiConfig');
+        const response = await fetch(`${API_BASE_URL}/api/agents/summary`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.agents) {
+            setAgents(data.agents.map((agent: any) => ({
+              id: agent.id,
+              name: agent.name,
+              emoji: agent.emoji,
+              isActive: false, // Will be set by activity simulation
+              pnl: agent.pnl || 0,
+              openMarkets: agent.openMarkets || 0,
+              lastTrade: agent.lastTrade || 'No trades',
+            })));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch agents summary:', error);
+      }
+    };
+    
+    loadAgentsSummary();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadAgentsSummary, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Simulate AI trading activity (visual indicator only)
   useEffect(() => {
     const interval = setInterval(() => {
-      const randomAgentIndex = Math.floor(Math.random() * mockAgents.length);
+      const randomAgentIndex = Math.floor(Math.random() * agents.length);
       
       setAgents(prev => prev.map((agent, idx) => ({
-        ...mockAgents[idx], // Preserve all properties from mockAgents
+        ...agent,
         isActive: idx === randomAgentIndex
       })));
 
       setTimeout(() => {
-        setAgents(prev => prev.map((agent, idx) => ({
-          ...mockAgents[idx], // Preserve all properties
+        setAgents(prev => prev.map(agent => ({
+          ...agent,
           isActive: false
         })));
       }, 1500);
     }, 8000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [agents.length]);
 
-  const handleAgentClick = (agentId: string) => {
+  const handleAgentClick = async (agentId: string) => {
     if (selectedAgent === agentId) {
       // Clicking the same agent - close trades view
       setSelectedAgent(null);
@@ -665,6 +493,14 @@ const Index = () => {
       // Ensure summary panel is open
       if (!isSummaryOpen) {
         setIsSummaryOpen(true);
+      }
+      
+      // Fetch trades for this agent
+      try {
+        const trades = await getAgentTrades(agentId);
+        setAgentTrades(prev => ({ ...prev, [agentId]: trades }));
+      } catch (error) {
+        console.error(`Failed to load trades for ${agentId}:`, error);
       }
     }
   };
@@ -1462,8 +1298,8 @@ const Index = () => {
                 onBubbleClick={(market) => handleBubbleClick(market)}
                 selectedNodeId={selectedNode}
                 selectedAgent={selectedAgent}
-                agents={mockAgents}
-                agentTradeMarkets={selectedAgent ? getAgentTrades(selectedAgent, predictions, newsArticles).map(t => t.market) : []}
+                agents={agents}
+                agentTradeMarkets={selectedAgent && agentTrades[selectedAgent] ? agentTrades[selectedAgent].map(t => t.market || t.predictionId) : []}
                 isTransitioning={isTransitioning}
                 isResizing={false}
               />
@@ -1562,7 +1398,7 @@ const Index = () => {
                       agentId={selectedAgent}
                       agentName={agents.find(a => a.id === selectedAgent)?.name || 'Unknown'}
                       agentEmoji={agents.find(a => a.id === selectedAgent)?.emoji || '🤖'}
-                      trades={getAgentTrades(selectedAgent, predictions, newsArticles)}
+                      trades={agentTrades[selectedAgent] || []}
                       onClose={handleCloseAgentTrades}
                       onTradeClick={(marketName, predictionId) => {
                         // Always use predictionId - trades are generated from actual predictions

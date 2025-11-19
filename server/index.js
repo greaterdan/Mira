@@ -44,6 +44,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { fetchAllMarkets } from './services/polymarketService.js';
 import { transformMarkets } from './services/marketTransformer.js';
 import { mapCategoryToPolymarket } from './utils/categoryMapper.js';
+import { getAgentTrades, getAgentsSummary } from './api/agents.js';
 
 // Get directory paths for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -159,14 +160,21 @@ app.get('/api/csrf-token', (req, res) => {
 // Security: CORS - restrict to specific origins instead of wildcard
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5173', 'http://localhost:3000', 'https://probly.tech']; // Default for development
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'https://probly.tech']; // Default for development
 
 // CORS configuration - allow healthcheck without origin check
+// CRITICAL: When credentials are included, we MUST return the specific origin, not '*'
 app.use(cors({
   origin: function (origin, callback) {
+    // CRITICAL: When credentials: true, we MUST return the actual origin string, not true
+    // Returning true becomes '*' which is not allowed with credentials
+    
     // Allow requests with no origin (like mobile apps, Postman, healthchecks, etc.)
-    // Railway healthchecks don't send an origin header, so we must allow this
-    if (!origin) return callback(null, true);
+    // For these, we return the first allowed origin as a fallback
+    if (!origin) {
+      // For healthchecks and non-browser requests, use first allowed origin
+      return callback(null, allowedOrigins[0] || 'http://localhost:3000');
+    }
     
     // SECURITY: In production, only allow configured origins
     // In development, allow localhost origins
@@ -175,7 +183,8 @@ app.use(cors({
       const isRailwayOrigin = origin.includes('.up.railway.app') || origin.includes('.railway.app');
       
       if (allowedOrigins.indexOf(origin) !== -1 || isRailwayOrigin) {
-      callback(null, true);
+        // Return the actual origin (not true) when credentials are included
+        callback(null, origin);
     } else {
         // Only log CORS blocks occasionally (every 100th) to reduce log spam
         if (Math.random() < 0.01) {
@@ -186,7 +195,8 @@ app.use(cors({
     } else {
       // Development: Allow localhost and configured origins
       if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-        callback(null, true);
+        // Return the actual origin (not true) when credentials are included
+        callback(null, origin);
       } else {
         // Only log CORS blocks occasionally (every 100th) to reduce log spam
         if (Math.random() < 0.01) {
@@ -207,8 +217,11 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for healthcheck and auth endpoints
-    return req.path === '/health' || req.path === '/auth/me';
+    // Skip rate limiting for healthcheck, auth, and agent endpoints
+    return req.path === '/health' || 
+           req.path === '/api/health' ||
+           req.path === '/api/auth/me' ||
+           req.path.startsWith('/api/agents');
   },
 });
 
@@ -1796,6 +1809,13 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
+// Agent trading endpoints
+// GET /api/agents/:agentId/trades - Get trades for a specific agent
+app.get('/api/agents/:agentId/trades', apiLimiter, getAgentTrades);
+
+// GET /api/agents/summary - Get summary for all agents
+app.get('/api/agents/summary', apiLimiter, getAgentsSummary);
+
 // Waitlist endpoint - sends email notification
 // SECURITY: Apply rate limiting, CSRF protection, and input sanitization
 app.post('/api/waitlist', waitlistLimiter, (req, res, next) => {
@@ -1999,6 +2019,8 @@ if (fs.existsSync(distPath)) {
         health: '/api/health',
         predictions: '/api/predictions',
         news: '/api/news',
+        agents: '/api/agents/:agentId/trades',
+        agentsSummary: '/api/agents/summary',
       }
     });
   });

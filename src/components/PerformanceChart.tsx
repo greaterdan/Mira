@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Customized } from "recharts";
 import { TechnicalView } from "./TechnicalView";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -108,14 +108,14 @@ const MultiAgentTooltip = ({ active, payload, label }: any) => {
 };
 
 // Line Endpoints Component - renders pills at end of each line
-const createLineEndpoints = (selectedAgent: string | null) => (props: any) => {
+const createLineEndpoints = (selectedAgent: string | null, chartData: ChartDataPoint[]) => (props: any) => {
   const { xAxisMap, yAxisMap, offset, width, height } = props;
   const xAxis = xAxisMap?.[Object.keys(xAxisMap || {})[0]];
   const yAxis = yAxisMap?.[Object.keys(yAxisMap || {})[0]];
   
-  if (!xAxis || !yAxis || !mockChartData || mockChartData.length === 0) return null;
+  if (!xAxis || !yAxis || !chartData || chartData.length === 0) return null;
   
-  const lastDataPoint = mockChartData[mockChartData.length - 1];
+  const lastDataPoint = chartData[chartData.length - 1];
   const chartWidth = xAxis.width || width - offset.left - offset.right;
   const chartLeft = offset.left;
   const chartTop = offset.top;
@@ -124,7 +124,7 @@ const createLineEndpoints = (selectedAgent: string | null) => (props: any) => {
   const yDomain = yAxis.domain || (() => {
     let min = Infinity;
     let max = -Infinity;
-    mockChartData.forEach((point) => {
+    chartData.forEach((point) => {
       agents.forEach((agent) => {
         const value = point[agent.id as keyof ChartDataPoint] as number;
         if (value !== undefined && value !== null) {
@@ -249,6 +249,70 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"chart" | "technical">("chart");
   const [zoomLevel, setZoomLevel] = useState(1); // 1 = normal, >1 = zoomed in, <1 = zoomed out
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(mockChartData);
+  
+  // Fetch real agent portfolio data and update chart
+  useEffect(() => {
+    const loadChartData = async () => {
+      try {
+        const { API_BASE_URL } = await import('@/lib/apiConfig');
+        const response = await fetch(`${API_BASE_URL}/api/agents/summary`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Build chart data from agent portfolios
+          // For now, use current capital as the latest point
+          // In the future, we can track historical portfolio snapshots
+          const now = new Date();
+          const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          
+          const newDataPoint: ChartDataPoint = {
+            time: timeStr,
+            DEEPSEEK: 3000, // Starting capital - will be updated with real data
+            CLAUDE: 3000,
+            QWEN: 3000,
+            GEMINI: 3000,
+            GROK: 3000,
+            GPT5: 3000,
+          };
+          
+          // Map agent data to chart format
+          if (data.agents) {
+            const agentMap: Record<string, string> = {
+              'deepseek': 'DEEPSEEK',
+              'claude': 'CLAUDE',
+              'qwen': 'QWEN',
+              'gemini': 'GEMINI',
+              'grok': 'GROK',
+              'gpt5': 'GPT5',
+            };
+            
+            data.agents.forEach((agent: any) => {
+              const chartKey = agentMap[agent.id] as keyof ChartDataPoint;
+              if (chartKey) {
+                // Calculate current capital: starting (3000) + PnL
+                newDataPoint[chartKey] = 3000 + (agent.pnl || 0);
+              }
+            });
+          }
+          
+          // Add to chart data (keep last 6 points for trend)
+          setChartData(prev => {
+            const updated = [...prev, newDataPoint];
+            return updated.slice(-6); // Keep last 6 data points
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch chart data:', error);
+      }
+    };
+    
+    loadChartData();
+    // Update chart every 30 seconds
+    const interval = setInterval(loadChartData, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Filter agents to only show those trading the selected market
   const filteredAgents = useMemo(() => {
@@ -285,7 +349,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
   const { baseMinValue, baseMaxValue } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
-    mockChartData.forEach((point) => {
+    chartData.forEach((point) => {
       agents.forEach((agent) => {
         const value = point[agent.id as keyof ChartDataPoint] as number;
         if (value !== undefined && value !== null) {
@@ -300,7 +364,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
       baseMinValue: Math.max(0, Math.floor(min - padding)),
       baseMaxValue: Math.ceil(max + padding),
     };
-  }, []);
+  }, [chartData]);
 
   // Calculate zoomed Y-axis domain
   const { minValue, maxValue } = useMemo(() => {
@@ -421,7 +485,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
           
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={mockChartData}
+              data={chartData}
               margin={{ top: 20, right: 140, bottom: 30, left: 50 }}
               style={{ backgroundColor: "transparent" }}
             >
@@ -530,7 +594,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
               })}
               
               {/* Custom Line Endpoints */}
-              <Customized component={createLineEndpoints(selectedAgent)} />
+              <Customized component={createLineEndpoints(selectedAgent, chartData)} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
