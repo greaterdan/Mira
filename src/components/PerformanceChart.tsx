@@ -17,13 +17,18 @@ interface ChartDataPoint {
 // All agents start with $3,000 USD
 const STARTING_CAPITAL = 3000;
 
-const mockChartData: ChartDataPoint[] = [
-  { time: "00:00", DEEPSEEK: STARTING_CAPITAL, CLAUDE: STARTING_CAPITAL, QWEN: STARTING_CAPITAL, GEMINI: STARTING_CAPITAL, GROK: STARTING_CAPITAL, GPT5: STARTING_CAPITAL },
-  { time: "04:00", DEEPSEEK: 3120, CLAUDE: 3180, QWEN: 3050, GEMINI: 3250, GROK: 2980, GPT5: 2950 },
-  { time: "08:00", DEEPSEEK: 3280, CLAUDE: 3420, QWEN: 3120, GEMINI: 3480, GROK: 2890, GPT5: 2870 },
-  { time: "12:00", DEEPSEEK: 3450, CLAUDE: 3620, QWEN: 3180, GEMINI: 3680, GROK: 2840, GPT5: 2800 },
-  { time: "16:00", DEEPSEEK: 3590, CLAUDE: 3880, QWEN: 3240, GEMINI: 3920, GROK: 2780, GPT5: 2750 },
-  { time: "20:00", DEEPSEEK: 3720, CLAUDE: 4120, QWEN: 3316, GEMINI: 4180, GROK: 2740, GPT5: 2710 },
+// Initial chart data - all agents start at $3,000
+// This will be replaced with real data from the API
+const initialChartData: ChartDataPoint[] = [
+  { 
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+    DEEPSEEK: STARTING_CAPITAL, 
+    CLAUDE: STARTING_CAPITAL, 
+    QWEN: STARTING_CAPITAL, 
+    GEMINI: STARTING_CAPITAL, 
+    GROK: STARTING_CAPITAL, 
+    GPT5: STARTING_CAPITAL 
+  },
 ];
 
 const AGENT_LOGO: Record<string, string> = {
@@ -252,7 +257,8 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"chart" | "technical">("chart");
   const [zoomLevel, setZoomLevel] = useState(1); // 1 = normal, >1 = zoomed in, <1 = zoomed out
-  const [chartData, setChartData] = useState<ChartDataPoint[]>(mockChartData);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(initialChartData);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Fetch real agent portfolio data and update chart
   useEffect(() => {
@@ -265,14 +271,12 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
           const data = await response.json();
           
           // Build chart data from agent portfolios
-          // For now, use current capital as the latest point
-          // In the future, we can track historical portfolio snapshots
           const now = new Date();
           const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
           
           const newDataPoint: ChartDataPoint = {
             time: timeStr,
-            DEEPSEEK: STARTING_CAPITAL, // Starting capital - will be updated with real data
+            DEEPSEEK: STARTING_CAPITAL, // Default to starting capital
             CLAUDE: STARTING_CAPITAL,
             QWEN: STARTING_CAPITAL,
             GEMINI: STARTING_CAPITAL,
@@ -281,7 +285,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
           };
           
           // Map agent data to chart format
-          if (data.agents) {
+          if (data.agents && Array.isArray(data.agents)) {
             const agentMap: Record<string, string> = {
               'deepseek': 'DEEPSEEK',
               'claude': 'CLAUDE',
@@ -296,27 +300,39 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
               if (chartKey) {
                 // Calculate current capital: starting ($3,000) + PnL
                 // PnL can be positive (wins) or negative (losses)
-                newDataPoint[chartKey] = STARTING_CAPITAL + (agent.pnl || 0);
+                // If no trades have been made, PnL is 0, so capital = $3,000
+                const pnl = agent.pnl || 0;
+                newDataPoint[chartKey] = STARTING_CAPITAL + pnl;
               }
             });
           }
           
-          // Add to chart data (keep last 6 points for trend)
+          // Replace chart data with real data (don't append to mock data)
           setChartData(prev => {
+            // If this is the first load, replace initial data
+            // Otherwise, add new point and keep last 10 points for trend
+            if (isLoading) {
+              setIsLoading(false);
+              return [newDataPoint];
+            }
             const updated = [...prev, newDataPoint];
-            return updated.slice(-6); // Keep last 6 data points
+            return updated.slice(-10); // Keep last 10 data points for trend
           });
+        } else {
+          console.error('Failed to fetch agent summary:', response.status, response.statusText);
         }
       } catch (error) {
         console.error('Failed to fetch chart data:', error);
+        // Keep showing initial data if API fails
       }
     };
     
+    // Load immediately on mount
     loadChartData();
     // Update chart every 30 seconds
     const interval = setInterval(loadChartData, 30 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isLoading]);
 
   // Filter agents to only show those trading the selected market
   const filteredAgents = useMemo(() => {
