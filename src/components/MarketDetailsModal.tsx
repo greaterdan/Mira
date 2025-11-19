@@ -527,7 +527,7 @@ export const MarketDetailsModal = ({ isOpen, onClose, market }: MarketDetailsMod
                         const agentUpper = market.agentName.toUpperCase();
                         if (agentUpper.includes("GROK")) return "/grok.png";
                         if (agentUpper.includes("GEMINI")) return "/GEMENI.png";
-                        if (agentUpper.includes("DEEPSEEK")) return "/Deepseek-logo-icon.svg";
+                        if (agentUpper.includes("DEEPSEEK")) return "/deepseek.png";
                         if (agentUpper.includes("CLAUDE")) return "/Claude_AI_symbol.svg";
                         if (agentUpper.includes("GPT") || agentUpper.includes("OPENAI")) return "/GPT.png";
                         if (agentUpper.includes("QWEN")) return "/Qwen_logo.svg";

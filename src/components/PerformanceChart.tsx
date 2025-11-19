@@ -26,7 +26,7 @@ const mockChartData: ChartDataPoint[] = [
 const AGENT_LOGO: Record<string, string> = {
   GROK: "/grok.png",
   GEMINI: "/GEMENI.png",
-  DEEPSEEK: "/Deepseek-logo-icon.svg",
+  DEEPSEEK: "/deepseek.png",
   CLAUDE: "/Claude_AI_symbol.svg",
   GPT5: "/GPT.png",
   QWEN: "/Qwen_logo.svg",
