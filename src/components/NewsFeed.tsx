@@ -137,6 +137,8 @@ export const NewsFeed = () => {
         setLastUpdate(new Date());
       }
     } catch (error) {
+      // Log error for debugging
+      console.error('Error fetching news:', error);
       // Keep existing news on error
     } finally {
       setLoading(false);

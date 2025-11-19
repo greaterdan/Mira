@@ -1075,16 +1075,24 @@ app.get('/api/news', async (req, res) => {
     const results = await Promise.all(fetchPromises);
     let allArticles = results.flat();
     
+    // Log if no articles were fetched (sampled at 10% to reduce log spam)
+    if (allArticles.length === 0 && Math.random() < 0.1) {
+      console.warn('[NEWS] No articles fetched from any API. Check API keys and rate limits.');
+      console.warn(`[NEWS] NEWS_API_KEY: ${NEWS_API_KEY ? 'set' : 'NOT SET'}`);
+      console.warn(`[NEWS] NEWSDATA_API_KEY: ${NEWSDATA_API_KEY ? 'set' : 'NOT SET'}`);
+      console.warn(`[NEWS] GNEWS_API_KEY: ${GNEWS_API_KEY ? 'set' : 'NOT SET'}`);
+    }
+    
     // Deduplicate articles
     allArticles = deduplicateArticles(allArticles);
     
-    // Final filter: Only show articles from last 24 hours (safety check)
+    // Final filter: Only show articles from last 7 days (more flexible than 24 hours)
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     allArticles = allArticles.filter(article => {
       if (!article.publishedAt) return false;
       const publishedDate = new Date(article.publishedAt);
-      return publishedDate >= twentyFourHoursAgo;
+      return publishedDate >= sevenDaysAgo;
     });
     
     // Sort by published date (newest first)
