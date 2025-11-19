@@ -58,10 +58,10 @@ export const Waitlist = () => {
       <div className="max-w-sm w-full">
         <div className="mb-8">
           <h2 className="text-lg font-mono text-foreground mb-3">
-            Agent Builder
+            Join the waitlist
           </h2>
           <p className="text-sm text-muted-foreground font-mono leading-relaxed">
-            Building custom trading agents. Sign up to get notified when it's ready.
+            Get notified when Agent Builder is ready.
           </p>
         </div>
 
