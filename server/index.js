@@ -859,12 +859,15 @@ const fetchNewsAPI = async () => {
 const fetchNewsData = async () => {
   // SECURITY: Check if API key is configured
   if (!NEWSDATA_API_KEY) {
-    console.warn('NEWSDATA_API_KEY not configured, skipping NewsData.io');
+    // Only log occasionally to reduce log spam
+    if (Math.random() < 0.01) {
+      console.warn('NEWSDATA_API_KEY not configured, skipping NewsData.io');
+    }
     return [];
   }
-  // Get date from last 24 hours for freshest news
+  // Get date from last 7 days for more news (relaxed from 24 hours)
   const fromDate = new Date();
-  fromDate.setHours(fromDate.getHours() - 24);
+  fromDate.setDate(fromDate.getDate() - 7);
   const fromDateStr = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
   // NewsData.io uses different query parameters - try multiple queries
@@ -950,13 +953,16 @@ const fetchNewsData = async () => {
 const fetchGNews = async () => {
   // SECURITY: Check if API key is configured
   if (!GNEWS_API_KEY) {
-    console.warn('GNEWS_API_KEY not configured, skipping GNews');
+    // Only log occasionally to reduce log spam
+    if (Math.random() < 0.01) {
+      console.warn('GNEWS_API_KEY not configured, skipping GNews');
+    }
     return [];
   }
   
-  // Get date from last 24 hours for freshest news
+  // Get date from last 7 days for more news (relaxed from 24 hours)
   const fromDate = new Date();
-  fromDate.setHours(fromDate.getHours() - 24);
+  fromDate.setDate(fromDate.getDate() - 7);
   const fromDateStr = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   
   // GNews has rate limits, so use fewer broader queries
