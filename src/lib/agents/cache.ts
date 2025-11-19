@@ -18,9 +18,9 @@ interface AgentCacheEntry {
 }
 
 /**
- * Cache TTL: 15 seconds (very short to ensure fresh market selection)
+ * Cache TTL: 5 seconds (very short to ensure fresh market selection and prevent repetitive trades)
  */
-const CACHE_TTL_MS = 15 * 1000;
+const CACHE_TTL_MS = 5 * 1000;
 
 /**
  * In-memory cache: agentId -> cache entry
@@ -66,16 +66,16 @@ export function getCachedAgentTrades(
   }
   
   // Cache hit - return cached trades
-  // BUT: Always invalidate if cache is older than 10 seconds to ensure fresh market selection
+  // BUT: Always invalidate if cache is older than 3 seconds to ensure fresh market selection
   const ageSeconds = age / 1000;
-  if (ageSeconds > 10) {
-    console.log(`[Cache:${agentId}] ⚠️ Cache age ${ageSeconds.toFixed(1)}s > 10s - invalidating for fresh market research`);
+  if (ageSeconds > 3) {
+    console.log(`[Cache:${agentId}] ⚠️ Cache age ${ageSeconds.toFixed(1)}s > 3s - invalidating for fresh market research`);
     agentCache.delete(agentId);
     return null; // Force regeneration for fresh market selection
   }
   
-  // Don't return cached empty array if it's been less than 10 seconds (might be a transient issue)
-  if (entry.trades.length === 0 && ageSeconds < 10) {
+  // Don't return cached empty array if it's been less than 3 seconds (might be a transient issue)
+  if (entry.trades.length === 0 && ageSeconds < 3) {
     console.log(`[Cache:${agentId}] ⚠️ Cache has 0 trades but age is only ${ageSeconds.toFixed(1)}s - invalidating to retry`);
     agentCache.delete(agentId);
     return null; // Force regeneration

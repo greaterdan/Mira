@@ -138,6 +138,7 @@ export async function fetchAllMarkets(): Promise<Market[]> {
         // Extract market ID using EXACT same logic as predictions (marketTransformer.js line 624-635)
         // This ensures market IDs match prediction IDs exactly
         // Predictions use: condition_id || question_id || slug || id || market_id
+        // IMPORTANT: Use EXACT same hierarchy and field names as marketTransformer.js
         let marketId = actualMarket.condition_id || 
                       actualMarket.question_id || 
                       actualMarket.slug || 
@@ -146,7 +147,8 @@ export async function fetchAllMarkets(): Promise<Market[]> {
                       rawMarket.condition_id ||
                       rawMarket.question_id ||
                       rawMarket.slug ||
-                      rawMarket.id;
+                      rawMarket.id ||
+                      rawMarket.market_id;
         
         // If no ID found, generate one using EXACT same logic as predictions (line 630-635)
         if (!marketId && question) {
@@ -161,8 +163,11 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           return null;
         }
         
-        const volume = parseFloat(actualMarket.volume || actualMarket.volume24h || '0');
-        const liquidity = parseFloat(actualMarket.liquidity || actualMarket.liquidityUsd || '0');
+        // CRITICAL: Convert to string and ensure it matches prediction ID format
+        marketId = String(marketId);
+        
+        const volume = parseFloat(actualMarket.volume || actualMarket.volume24h || actualMarket.totalVolume || '0');
+        const liquidity = parseFloat(actualMarket.liquidity || actualMarket.liquidityUsd || actualMarket.liquidityClob || '0');
         const probability = parseFloat(actualMarket.probability || actualMarket.currentPrice || '0.5');
         
         // Safely extract category - handle arrays, objects, null, undefined
@@ -175,11 +180,6 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           const firstTag = actualMarket.tags[0];
           categoryValue = typeof firstTag === 'string' ? firstTag : String(firstTag);
         }
-        
-        // Use marketId - MUST match prediction IDs exactly
-        // Don't filter out slug-based IDs - they're valid prediction IDs
-        // Only skip generated IDs (market-* prefix) if they don't have condition_id or slug
-        marketId = String(marketId);
         
         return {
           id: marketId, // Use condition_id to match prediction IDs
