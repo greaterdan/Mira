@@ -163,6 +163,11 @@ export async function generateTradeForMarket(
   side = personalityResult.side;
   confidence = personalityResult.confidence;
   
+  // Calculate investment amount based on personality-adjusted size
+  // Starting capital is $3000, use personality-adjusted size
+  const STARTING_CAPITAL = 3000;
+  const investmentUsd = personalityResult.sizeUsd;
+  
   // Determine trade status (simplified - all new trades are OPEN)
   const status: 'OPEN' | 'CLOSED' = 'OPEN';
   
@@ -184,6 +189,7 @@ export async function generateTradeForMarket(
     reasoning,
     status,
     pnl: null, // OPEN trades have no PnL yet
+    investmentUsd, // Amount invested in this trade
     openedAt,
     summaryDecision,
     seed,

@@ -89,6 +89,7 @@ const fetchAgentTrades = async (agentId: string): Promise<Trade[]> => {
       confidence: typeof trade.confidence === 'number' ? trade.confidence : parseInt(trade.confidence) || 0,
       reasoning: typeof trade.reasoning === 'string' ? trade.reasoning : (Array.isArray(trade.reasoning) ? trade.reasoning.join(' ') : ''),
       pnl: trade.pnl,
+      investmentUsd: trade.investmentUsd || 0, // Amount invested
       status: trade.status || 'OPEN',
       predictionId: trade.predictionId || trade.marketId,
     }));

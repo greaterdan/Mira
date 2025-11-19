@@ -134,6 +134,7 @@ export async function getAgentTrades(req, res) {
       reasoning: trade.reasoning.join(' '),
       pnl: trade.pnl,
       status: trade.status,
+      investmentUsd: trade.investmentUsd || 0, // Amount invested in this trade
       predictionId: trade.marketId, // Use marketId as predictionId for matching
     }));
     

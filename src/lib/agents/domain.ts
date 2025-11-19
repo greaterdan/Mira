@@ -103,6 +103,7 @@ export interface AgentTrade {
   reasoning: string[]; // Array of bullet point strings
   status: TradeStatus;
   pnl: number | null; // null for OPEN trades
+  investmentUsd: number; // Amount invested in this trade
   openedAt: string; // ISO timestamp
   closedAt?: string; // ISO timestamp (only for CLOSED)
   summaryDecision: string; // 1-2 sentence explanation
