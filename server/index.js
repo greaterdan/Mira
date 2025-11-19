@@ -46,7 +46,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "http:"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "https://api.mainnet-beta.solana.com", "https://gamma-api.polymarket.com", "https://data-api.polymarket.com", "https://clob.polymarket.com", "https://newsapi.org", "https://newsdata.io", "https://gnews.io", "https://my.productfruits.com", "https://accounts.google.com", "https://www.googleapis.com"],
+      connectSrc: ["'self'", "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com", "https://solana-api.projectserum.com", "https://gamma-api.polymarket.com", "https://data-api.polymarket.com", "https://clob.polymarket.com", "https://newsapi.org", "https://newsdata.io", "https://gnews.io", "https://my.productfruits.com", "https://accounts.google.com", "https://www.googleapis.com"],
     },
   },
   crossOriginEmbedderPolicy: false, // Allow external resources

@@ -33,12 +33,41 @@ export const SendSolModal = ({ open, onOpenChange, walletAddress, privateKey, on
   const fetchBalance = async () => {
     setIsLoadingBalance(true);
     try {
-      const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
-      const publicKey = new PublicKey(walletAddress);
-      const balanceLamports = await connection.getBalance(publicKey);
-      const balanceSol = balanceLamports / 1_000_000_000;
-      setBalance(balanceSol);
+      // Try multiple RPC endpoints for reliability
+      const rpcEndpoints = [
+        "https://api.mainnet-beta.solana.com",
+        "https://rpc.ankr.com/solana",
+        "https://solana-api.projectserum.com",
+      ];
+      
+      let lastError: Error | null = null;
+      for (const endpoint of rpcEndpoints) {
+        try {
+          const connection = new Connection(endpoint, "confirmed");
+          const publicKey = new PublicKey(walletAddress);
+          const balanceLamports = await connection.getBalance(publicKey);
+          const balanceSol = balanceLamports / 1_000_000_000;
+          setBalance(balanceSol);
+          return; // Success, exit
+        } catch (error: any) {
+          lastError = error;
+          // If rate limited, try next endpoint
+          if (error.message?.includes('403') || error.message?.includes('429')) {
+            continue;
+          }
+          // For other errors, also try next endpoint
+          continue;
+        }
+      }
+      
+      // If all endpoints failed
+      if (lastError) {
+        console.debug('Failed to fetch Solana balance:', lastError.message);
+      }
+      setBalance(0);
     } catch (error) {
+      // Silent fail
+      console.debug('Error fetching balance:', error);
       setBalance(0);
     } finally {
       setIsLoadingBalance(false);
@@ -111,8 +140,32 @@ export const SendSolModal = ({ open, onOpenChange, walletAddress, privateKey, on
       const secretKey = bs58.decode(privateKey);
       const keypair = Keypair.fromSecretKey(secretKey);
 
-      // Connect to Solana network
-      const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+      // Connect to Solana network - try multiple endpoints
+      const rpcEndpoints = [
+        "https://api.mainnet-beta.solana.com",
+        "https://rpc.ankr.com/solana",
+        "https://solana-api.projectserum.com",
+      ];
+      
+      let connection: Connection | null = null;
+      let lastError: Error | null = null;
+      
+      for (const endpoint of rpcEndpoints) {
+        try {
+          const testConnection = new Connection(endpoint, "confirmed");
+          // Test connection by getting recent blockhash
+          await testConnection.getLatestBlockhash();
+          connection = testConnection;
+          break; // Success, use this endpoint
+        } catch (error: any) {
+          lastError = error;
+          continue; // Try next endpoint
+        }
+      }
+      
+      if (!connection) {
+        throw new Error(`Failed to connect to Solana RPC: ${lastError?.message || 'All endpoints failed'}`);
+      }
 
       // Create transaction
       const transaction = new Transaction().add(

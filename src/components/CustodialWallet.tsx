@@ -35,27 +35,59 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
     
     setIsLoading(true);
     try {
-      // Fetch balance from Solana RPC
-      const response = await fetch(`https://api.mainnet-beta.solana.com`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getBalance',
-          params: [walletAddress],
-        }),
-      });
+      // Try Helius public RPC first (more reliable than official endpoint)
+      const rpcEndpoints = [
+        'https://api.mainnet-beta.solana.com',
+        'https://rpc.ankr.com/solana',
+        'https://solana-api.projectserum.com',
+      ];
+      
+      let lastError: Error | null = null;
+      for (const endpoint of rpcEndpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'getBalance',
+              params: [walletAddress],
+            }),
+          });
 
-      const data = await response.json();
-      if (data.result) {
-        // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
-        const solBalance = data.result.value / 1_000_000_000;
-        setBalance(solBalance.toFixed(4));
+          if (!response.ok) {
+            // If 403 or rate limit, try next endpoint
+            if (response.status === 403 || response.status === 429) {
+              continue;
+            }
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.result) {
+            // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
+            const solBalance = data.result.value / 1_000_000_000;
+            setBalance(solBalance.toFixed(4));
+            return; // Success, exit
+          }
+        } catch (error: any) {
+          lastError = error;
+          // Continue to next endpoint
+          continue;
+        }
       }
+      
+      // If all endpoints failed, set balance to 0
+      if (lastError) {
+        console.debug('Failed to fetch Solana balance:', lastError.message);
+      }
+      setBalance("0.00");
     } catch (error) {
+      // Silent fail - don't show error to user
+      console.debug('Error fetching balance:', error);
       setBalance("0.00");
     } finally {
       setIsLoading(false);
