@@ -223,7 +223,7 @@ export const ActivePositions = ({ agents, selectedAgent, onAgentClick }: ActiveP
               {/* Agent Icon with Status */}
               <div className="relative">
                 <img 
-                  src={`/${agent.id === 'grok' ? 'grok.png' : agent.id === 'gpt5' ? 'GPT.png' : agent.id === 'gemini' ? 'GEMENI.png' : agent.id === 'deepseek' ? 'Deepseek-logo-icon.svg' : agent.id === 'claude' ? 'Claude_AI_symbol.svg' : agent.id === 'qwen' ? 'Qwen_logo.svg' : 'placeholder.svg'}`}
+                  src={`/${agent.id === 'grok' ? 'grok.png' : agent.id === 'gpt5' ? 'GPT.png' : agent.id === 'gemini' ? 'GEMENI.png' : agent.id === 'deepseek' ? 'deepseek.png' : agent.id === 'claude' ? 'Claude_AI_symbol.svg' : agent.id === 'qwen' ? 'Qwen_logo.svg' : 'placeholder.svg'}`}
                   alt={agent.name}
                   className={`object-contain ${agent.id === 'gemini' ? 'w-14 h-14' : 'w-10 h-10'}`}
                 />

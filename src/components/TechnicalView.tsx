@@ -1,7 +1,7 @@
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from "recharts";
 
 const AGENT_LOGO: Record<string, string> = {
-  deepseek: "/Deepseek-logo-icon.svg",
+  deepseek: "/deepseek.png",
   claude: "/Claude_AI_symbol.svg",
   qwen: "/Qwen_logo.svg",
   gemini: "/GEMENI.png",
@@ -149,7 +149,7 @@ const AgentCard = ({ agent, index }: { agent: AgentStats; index: number }) => (
     <div className="flex items-center gap-2 mb-2.5">
       <span className="text-terminal-accent font-mono text-xs">#{index + 1}</span>
       <img 
-        src={`/${agent.id === 'grok' ? 'grok.png' : agent.id === 'gpt5' ? 'GPT.png' : agent.id === 'gemini' ? 'GEMENI.png' : agent.id === 'deepseek' ? 'Deepseek-logo-icon.svg' : agent.id === 'claude' ? 'Claude_AI_symbol.svg' : agent.id === 'qwen' ? 'Qwen_logo.svg' : 'placeholder.svg'}`}
+        src={`/${agent.id === 'grok' ? 'grok.png' : agent.id === 'gpt5' ? 'GPT.png' : agent.id === 'gemini' ? 'GEMENI.png' : agent.id === 'deepseek' ? 'deepseek.png' : agent.id === 'claude' ? 'Claude_AI_symbol.svg' : agent.id === 'qwen' ? 'Qwen_logo.svg' : 'placeholder.svg'}`}
         alt={agent.name}
         className={`object-contain ${agent.id === 'gemini' ? 'w-7 h-7' : 'w-6 h-6'}`}
       />
