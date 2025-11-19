@@ -967,9 +967,11 @@ export async function transformMarkets(markets) {
   // console.log(`Markets with token maps: ${marketTokenMap.size}`);
   
   // Debug: Check first few markets to see their structure (removed to reduce log spam)
-  // if (flattenedMarkets.length > 0 && Math.random() < 0.01) {
-  //   console.log(`\nSample market structures (first 2):`);
-  //   for (let i = 0; i < Math.min(2, flattenedMarkets.length); i++) {
+  // Entire block commented out to prevent log spam
+  /*
+  if (flattenedMarkets.length > 0 && Math.random() < 0.01) {
+    console.log(`\nSample market structures (first 2):`);
+    for (let i = 0; i < Math.min(2, flattenedMarkets.length); i++) {
       const market = flattenedMarkets[i];
       const actualMarket = market.market || market;
       const conditionId = actualMarket.condition_id || actualMarket.event?.condition_id || market.condition_id || actualMarket.id || market.id;
@@ -1017,6 +1019,7 @@ export async function transformMarkets(markets) {
       Array.from(firstMarket[1].values()).map(v => `${v.outcome} (token: ${v.tokenId})`));
   }
   console.log(`=== END TOKEN EXTRACTION DEBUG ===\n`);
+  */
   
   // Fetch prices for all token_ids
   // The /prices endpoint uses token_id as the key
