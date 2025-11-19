@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import { Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Customized } from "recharts";
+import { Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Customized, ReferenceLine } from "recharts";
 import { TechnicalView } from "./TechnicalView";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ZoomIn, ZoomOut } from "lucide-react";
 
 interface ChartDataPoint {
   time: string;
+  timestamp?: number; // Full timestamp for sorting
   DEEPSEEK: number;
   CLAUDE: number;
   QWEN: number;
@@ -19,17 +20,24 @@ const STARTING_CAPITAL = 3000;
 
 // Initial chart data - all agents start at $3,000
 // This will be replaced with real data from the API
-const initialChartData: ChartDataPoint[] = [
-  { 
-    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
-    DEEPSEEK: STARTING_CAPITAL, 
-    CLAUDE: STARTING_CAPITAL, 
-    QWEN: STARTING_CAPITAL, 
-    GEMINI: STARTING_CAPITAL, 
-    GROK: STARTING_CAPITAL, 
-    GPT5: STARTING_CAPITAL 
-  },
-];
+const getInitialChartData = (): ChartDataPoint[] => {
+  const now = new Date();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const timeStr = `${monthNames[now.getMonth()]} ${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  
+  return [
+    { 
+      time: timeStr,
+      timestamp: now.getTime(),
+      DEEPSEEK: STARTING_CAPITAL, 
+      CLAUDE: STARTING_CAPITAL, 
+      QWEN: STARTING_CAPITAL, 
+      GEMINI: STARTING_CAPITAL, 
+      GROK: STARTING_CAPITAL, 
+      GPT5: STARTING_CAPITAL 
+    },
+  ];
+};
 
 const AGENT_LOGO: Record<string, string> = {
   GROK: "/grok.png",
@@ -257,7 +265,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"chart" | "technical">("chart");
   const [zoomLevel, setZoomLevel] = useState(1); // 1 = normal, >1 = zoomed in, <1 = zoomed out
-  const [chartData, setChartData] = useState<ChartDataPoint[]>(initialChartData);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>(getInitialChartData());
   const [isLoading, setIsLoading] = useState(true);
   
   // Fetch real agent portfolio data and update chart
@@ -272,10 +280,13 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
           
           // Build chart data from agent portfolios
           const now = new Date();
-          const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          // Format as "Nov 6 04:23" to match the reference image
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const timeStr = `${monthNames[now.getMonth()]} ${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
           
           const newDataPoint: ChartDataPoint = {
             time: timeStr,
+            timestamp: now.getTime(), // Store full timestamp for sorting
             DEEPSEEK: STARTING_CAPITAL, // Default to starting capital
             CLAUDE: STARTING_CAPITAL,
             QWEN: STARTING_CAPITAL,
@@ -310,13 +321,29 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
           // Replace chart data with real data (don't append to mock data)
           setChartData(prev => {
             // If this is the first load, replace initial data
-            // Otherwise, add new point and keep last 10 points for trend
+            // Otherwise, add new point and keep historical data (last 100 points for multi-day view)
             if (isLoading) {
               setIsLoading(false);
               return [newDataPoint];
             }
-            const updated = [...prev, newDataPoint];
-            return updated.slice(-10); // Keep last 10 data points for trend
+            // Check if this timestamp already exists (avoid duplicates)
+            const existingIndex = prev.findIndex(p => 
+              p.timestamp && Math.abs(p.timestamp - newDataPoint.timestamp!) < 60000 // Within 1 minute
+            );
+            
+            let updated: ChartDataPoint[];
+            if (existingIndex >= 0) {
+              // Update existing point
+              updated = [...prev];
+              updated[existingIndex] = newDataPoint;
+            } else {
+              // Add new point
+              updated = [...prev, newDataPoint];
+            }
+            
+            // Sort by timestamp and keep last 100 points (for multi-day historical view)
+            updated.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            return updated.slice(-100);
           });
         } else {
           console.error('Failed to fetch agent summary:', response.status, response.statusText);
@@ -514,6 +541,27 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
       {/* Content Area */}
       {viewMode === "chart" ? (
         <div className="flex-1 relative" style={{ backgroundColor: "#050608" }}>
+          {/* Money Watermark */}
+          <div
+            className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center"
+            style={{
+              opacity: 0.03,
+            }}
+          >
+            <span
+              style={{
+                fontSize: "200px",
+                fontWeight: 900,
+                color: "#D4AF37",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                letterSpacing: "0.05em",
+                transform: "rotate(-45deg)",
+              }}
+            >
+              MONEY
+            </span>
+          </div>
+          
           {/* Lower Band Gradient Overlay */}
           <div
             className="absolute bottom-0 left-0 right-0 pointer-events-none z-0"
@@ -566,6 +614,9 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
                   fontSize: 11,
                   fontFamily: "system-ui, -apple-system, sans-serif",
                 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
               
               <YAxis
@@ -579,6 +630,15 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null }: 
                   fontFamily: "system-ui, -apple-system, sans-serif",
                 }}
                 tickFormatter={(value) => `$${value.toFixed(0)}`}
+              />
+              
+              {/* Baseline Reference Line at Starting Capital */}
+              <ReferenceLine
+                y={STARTING_CAPITAL}
+                stroke="#C6CBD9"
+                strokeDasharray="3 3"
+                strokeWidth={1}
+                opacity={0.5}
               />
               
               <Tooltip
