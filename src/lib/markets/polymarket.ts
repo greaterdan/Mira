@@ -46,9 +46,20 @@ function mapPolymarketMarket(rawMarket: any): Market {
 
 /**
  * Map Polymarket category string to our Category type
+ * 
+ * Handles null, undefined, and non-string values safely.
  */
-function mapCategory(category: string): Market['category'] {
+function mapCategory(category: string | null | undefined | unknown): Market['category'] {
+  // Handle null, undefined, or non-string values
+  if (!category || typeof category !== 'string') {
+    return 'Other';
+  }
+  
   const normalized = category.trim();
+  if (!normalized) {
+    return 'Other';
+  }
+  
   const categoryMap: Record<string, Market['category']> = {
     'crypto': 'Crypto',
     'cryptocurrency': 'Crypto',
@@ -120,10 +131,21 @@ export async function fetchAllMarkets(): Promise<Market[]> {
         const liquidity = parseFloat(actualMarket.liquidity || actualMarket.liquidityUsd || '0');
         const probability = parseFloat(actualMarket.probability || actualMarket.currentPrice || '0.5');
         
+        // Safely extract category - handle arrays, objects, null, undefined
+        let categoryValue: string | null | undefined = null;
+        if (actualMarket.category) {
+          categoryValue = typeof actualMarket.category === 'string' 
+            ? actualMarket.category 
+            : String(actualMarket.category);
+        } else if (actualMarket.tags && Array.isArray(actualMarket.tags) && actualMarket.tags.length > 0) {
+          const firstTag = actualMarket.tags[0];
+          categoryValue = typeof firstTag === 'string' ? firstTag : String(firstTag);
+        }
+        
         return {
           id: conditionId || String(actualMarket.slug || ''),
           question,
-          category: mapCategory(actualMarket.category || actualMarket.tags?.[0] || 'Other'),
+          category: mapCategory(categoryValue),
           volumeUsd: volume,
           liquidityUsd: liquidity,
           currentProbability: probability,
