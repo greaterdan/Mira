@@ -3,6 +3,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import nodemailer from 'nodemailer';
 import { fetchAllMarkets } from './services/polymarketService.js';
 import { transformMarkets } from './services/marketTransformer.js';
 import { mapCategoryToPolymarket } from './utils/categoryMapper.js';
@@ -33,11 +34,12 @@ let predictionsCache = {
 // Main endpoint: Get predictions (ready-to-use format)
 app.get('/api/predictions', async (req, res) => {
   try {
-    const { category = 'All Markets', limit = 10000 } = req.query;
+    const { category = 'All Markets', limit = 10000, search = null } = req.query;
     
-    // Check cache first
+    // Check cache first (but don't cache search results - they should be fresh)
     const cacheNow = Date.now();
-    if (predictionsCache.data && 
+    const isSearching = search && search.trim();
+    if (!isSearching && predictionsCache.data && 
         predictionsCache.category === category &&
         predictionsCache.timestamp && 
         (cacheNow - predictionsCache.timestamp) < predictionsCache.CACHE_DURATION) {
@@ -45,7 +47,7 @@ app.get('/api/predictions', async (req, res) => {
       return res.json(predictionsCache.data);
     }
     
-    console.log(`[CACHE MISS] Fetching fresh predictions for category: ${category}`);
+    console.log(`[CACHE MISS] Fetching fresh predictions for category: ${category}${isSearching ? ` (search: ${search})` : ''}`);
     
     // Map category to Polymarket category
     let polymarketCategory = null;
@@ -53,14 +55,18 @@ app.get('/api/predictions', async (req, res) => {
       polymarketCategory = mapCategoryToPolymarket(category);
     }
     
-    // Fetch markets from Polymarket - limit to 100 for "All Markets" to reduce glitchiness
-    // For specific categories, fetch more markets to ensure we get enough
-    const maxMarkets = category === 'All Markets' ? 100 : 2000;
+    // Fetch markets from Polymarket - increased limits for better coverage
+    // When searching, fetch more markets to increase search pool
+    const maxMarkets = isSearching 
+      ? 10000 // Fetch more markets when searching
+      : category === 'All Markets' ? 500 : 5000;
+    
     let markets = await fetchAllMarkets({
       category: polymarketCategory,
       active: true,
       maxPages: Math.ceil(maxMarkets / 1000) + 1, // Fetch more pages for category searches
       limitPerPage: 1000,
+      searchQuery: isSearching ? search.trim() : null, // Pass search query to API
     });
     
     // ALWAYS fetch all markets for Earnings, Geopolitics, and Elections
@@ -72,6 +78,7 @@ app.get('/api/predictions', async (req, res) => {
         active: true,
         maxPages: Math.ceil(3000 / 1000) + 1, // Fetch more to find enough markets
         limitPerPage: 1000,
+        searchQuery: isSearching ? search.trim() : null,
       });
       markets = allMarkets; // Use all markets, will filter by detection below
       console.log(`Fetched ${markets.length} total markets for ${category} detection`);
@@ -82,16 +89,35 @@ app.get('/api/predictions', async (req, res) => {
         active: true,
         maxPages: Math.ceil(2000 / 1000) + 1,
         limitPerPage: 1000,
+        searchQuery: isSearching ? search.trim() : null,
       });
       markets = allMarkets; // Use all markets, will filter by detection below
     }
     
-    // Limit markets for "All Markets" category
-    const limitedMarkets = category === 'All Markets' ? markets.slice(0, 100) : markets;
+    // Limit markets for "All Markets" category (but allow more when searching or for other categories)
+    const limitedMarkets = (category === 'All Markets' && !isSearching) 
+      ? markets.slice(0, 500) 
+      : markets;
     
     // Transform markets to predictions (server-side filtering and transformation)
     // Note: transformMarkets is now async to fetch prices from /prices endpoint
     const predictions = await transformMarkets(limitedMarkets);
+    
+    // Apply server-side search filtering if search query provided
+    // (Since Polymarket API doesn't support text search, we filter client-side)
+    let searchFilteredPredictions = predictions;
+    if (isSearching) {
+      const searchLower = search.toLowerCase().trim();
+      searchFilteredPredictions = predictions.filter(p => {
+        const question = (p.question || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
+        const description = (p.description || '').toLowerCase();
+        return question.includes(searchLower) || 
+               category.includes(searchLower) || 
+               description.includes(searchLower);
+      });
+      console.log(`Search "${search}" filtered ${predictions.length} predictions down to ${searchFilteredPredictions.length}`);
+    }
     
     // DEBUG: Log category distribution
     const categoryCounts = {};
@@ -103,9 +129,10 @@ app.get('/api/predictions', async (req, res) => {
     console.log(`Total predictions: ${predictions.length}`);
     
     // Filter by category if needed (client-side category filtering)
-    let filteredPredictions = predictions;
+    // Use search-filtered predictions if search was applied
+    let filteredPredictions = searchFilteredPredictions;
     if (category !== 'All Markets') {
-      filteredPredictions = predictions.filter(p => {
+      filteredPredictions = searchFilteredPredictions.filter(p => {
         if (category === 'Trending' || category === 'Breaking' || category === 'New') {
           // For these, show all (or implement specific logic)
           return true;
@@ -640,6 +667,101 @@ app.get('/api/news', async (req, res) => {
       error: error.message,
       articles: [],
       status: 'error',
+    });
+  }
+});
+
+// Waitlist endpoint - sends email notification
+app.post('/api/waitlist', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Send email notification to dev@probly.tech
+    const notificationEmail = 'dev@probly.tech';
+    const subject = `New Waitlist Signup: ${email}`;
+    const htmlMessage = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">New Agent Builder Waitlist Signup</h2>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+        <hr style="border: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">This is an automated notification from the Probly waitlist system.</p>
+      </div>
+    `;
+    const textMessage = `
+New user joined the Agent Builder waitlist:
+
+Email: ${email}
+Timestamp: ${new Date().toISOString()}
+    `.trim();
+
+    console.log(`\n=== WAITLIST SIGNUP ===`);
+    console.log(`Email: ${email}`);
+    console.log(`Time: ${new Date().toISOString()}`);
+    console.log(`Sending notification to: ${notificationEmail}`);
+    console.log(`========================\n`);
+
+    // Send email notification using nodemailer
+    // Configure via environment variables:
+    // SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+    // Or use Gmail with app password
+    try {
+      // Create transporter - configure based on your email service
+      // For Gmail: Use app password (not regular password)
+      // For other services: Update SMTP settings accordingly
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.SMTP_USER || process.env.EMAIL_USER,
+          pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+        },
+      });
+
+      // Only send email if credentials are configured
+      if (process.env.SMTP_USER || process.env.EMAIL_USER) {
+        const mailOptions = {
+          from: process.env.SMTP_USER || process.env.EMAIL_USER,
+          to: notificationEmail,
+          subject: subject,
+          text: textMessage,
+          html: htmlMessage,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ Email notification sent to ${notificationEmail}`);
+      } else {
+        console.log(`⚠️  Email credentials not configured. Email would be sent to: ${notificationEmail}`);
+        console.log(`   Configure SMTP_USER and SMTP_PASS environment variables to enable email sending.`);
+      }
+    } catch (emailError) {
+      console.error('Error sending notification email:', emailError);
+      // Don't fail the request if email fails - still return success to user
+      // Log the error for debugging
+      console.error('Email error details:', emailError.message);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Successfully joined waitlist',
+      email: email 
+    });
+  } catch (error) {
+    console.error('Waitlist endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process waitlist signup',
+      message: error.message 
     });
   }
 });

@@ -1,24 +1,24 @@
-# Aura Predict
+# Probly
 
 **AI-Powered Prediction Market Terminal**
 
 A professional prediction and trading platform built with modern web technologies, featuring AI-powered agents and real-time market analysis.
 
-## 🚀 Overview
+## Overview
 
-Aura Predict is a comprehensive trading and prediction platform that integrates multiple AI agents for market analysis and decision-making. The platform provides real-time market data, technical analysis, and automated trading capabilities with a focus on Solana-based prediction markets.
+Probly is a comprehensive trading and prediction platform that integrates multiple AI agents for market analysis and decision-making. The platform provides real-time market data, technical analysis, and automated trading capabilities with a focus on Solana-based prediction markets.
 
-## ✨ Features
+## Features
 
-- **🤖 AI-Powered Agents**: Multiple AI agents (GPT, Claude, Grok, DeepSeek, Gemini) for market analysis and predictions
-- **📊 Real-Time Market Data**: Live feed integration with Polymarket and other prediction market providers
-- **📈 Technical Analysis**: Advanced charting and technical indicators
-- **💼 Trading Dashboard**: Comprehensive trading interface with position management
-- **🔐 Custodial Wallet Integration**: Secure wallet management for Solana transactions
-- **📉 Performance Tracking**: Real-time performance metrics and analytics
-- **🎯 Agent Builder**: Create and deploy custom AI trading agents with a user-friendly wizard interface
+- **AI-Powered Agents**: Multiple AI agents (GPT, Claude, Grok, DeepSeek, Gemini) for market analysis and predictions
+- **Real-Time Market Data**: Live feed integration with Polymarket and other prediction market providers
+- **Technical Analysis**: Advanced charting and technical indicators
+- **Trading Dashboard**: Comprehensive trading interface with position management
+- **Custodial Wallet Integration**: Secure wallet management for Solana transactions
+- **Performance Tracking**: Real-time performance metrics and analytics
+- **Agent Builder**: Create and deploy custom AI trading agents with a user-friendly wizard interface
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Frontend**: React 18 + TypeScript + Vite
 - **Styling**: Tailwind CSS + shadcn/ui components
@@ -29,12 +29,12 @@ Aura Predict is a comprehensive trading and prediction platform that integrates 
 - **Animations**: Framer Motion
 - **Backend**: Express.js + Node.js
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js 18.x or higher
 - npm or yarn package manager
 
-## 🔧 Installation
+## Installation
 
 1. Clone the repository:
 ```bash
@@ -47,7 +47,7 @@ cd aura-predict
 npm install
 ```
 
-## 🏃 Development
+## Development
 
 Start the development server:
 ```bash
@@ -66,7 +66,7 @@ npm run dev:all
 
 The application will be available at `http://localhost:3000` (frontend) and `http://localhost:3002` (backend).
 
-## 🏗️ Build
+## Build
 
 Build for production:
 ```bash
@@ -83,7 +83,7 @@ Preview production build:
 npm run preview
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 aura-predict/
@@ -102,7 +102,7 @@ aura-predict/
 └── vite.config.ts      # Vite configuration
 ```
 
-## 🔑 Key Features
+## Key Features
 
 ### AI Agent System
 - Multiple AI models for diverse trading strategies
@@ -126,18 +126,18 @@ aura-predict/
 - Risk management settings
 - Live testing and deployment
 
-## 📝 License
+## License
 
 This project is private and proprietary.
 
-## 🤝 Contributing
+## Contributing
 
 This is a private project. For access or questions, please contact the repository owner.
 
-## 📧 Contact
+## Contact
 
-For inquiries about Aura Predict, please reach out through the repository.
+For inquiries about Probly, please contact dev@probly.tech
 
 ---
 
-**Built with ❤️ for the prediction market community**
+**Built for the prediction market community**

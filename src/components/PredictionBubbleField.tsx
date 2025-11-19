@@ -1022,9 +1022,7 @@ export const PredictionBubbleField: React.FC<Props> = ({
               width: `${bubble.radius * 2}px`,
               height: `${bubble.radius * 2}px`,
               borderRadius: '50%', // Make wrapper round too
-              overflow: 'hidden', // Clip to round shape
               // CRITICAL: Prevent any layout shifts during transitions
-              willChange: isTransitioning || isResizing ? 'auto' : 'transform',
               transform: 'translateZ(0)', // GPU acceleration - single transform property
               // Floating animation - smooth natural float (like bubbles in water)
               // Enable for all bubbles for more bubbly effect
@@ -1048,7 +1046,7 @@ export const PredictionBubbleField: React.FC<Props> = ({
               backfaceVisibility: 'hidden',
               perspective: 1000,
               // OPTIMIZED: Reduce repaints with will-change only when needed
-              willChange: isDragging || isHighlighted ? 'transform' : 'auto',
+              willChange: (isTransitioning || isResizing || isDragging || isHighlighted) ? 'transform' : 'auto',
               // CRITICAL: Ensure pointer events work for dragging
               pointerEvents: 'auto',
               // AGGRESSIVE: Remove ALL outlines, borders, rings
@@ -1072,7 +1070,10 @@ export const PredictionBubbleField: React.FC<Props> = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              e.stopImmediatePropagation(); // CRITICAL: Stop ALL event propagation immediately
+              // Stop immediate propagation using native event
+              if (e.nativeEvent && typeof (e.nativeEvent as any).stopImmediatePropagation === 'function') {
+                (e.nativeEvent as any).stopImmediatePropagation();
+              }
               
               // CRITICAL: Prevent click if drag occurred or if currently dragging
               // Check ALL drag flags to ensure no clicks fire after drags
