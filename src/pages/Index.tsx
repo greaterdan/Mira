@@ -11,13 +11,7 @@ import { AISummaryPanel } from "@/components/AISummaryPanel";
 import { NewsFeed } from "@/components/NewsFeed";
 import { Waitlist } from "@/components/Waitlist";
 import { getOrCreateWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ChevronDown, Search, ExternalLink, Filter, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // All market fetching is now done server-side via /api/predictions
 
 interface Agent {
