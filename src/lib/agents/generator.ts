@@ -142,12 +142,26 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
   
   // Select markets with rotation to avoid always picking the same ones
   // Take top markets but add some randomness to explore different markets
-  const selectionSize = Math.min(agent.maxTrades * 3, scoredMarkets.length);
+  const selectionSize = Math.min(agent.maxTrades * 5, scoredMarkets.length); // Increased from 3 to 5 for more variety
   const topMarkets = scoredMarkets.slice(0, selectionSize);
   
-  // Add rotation: shuffle top markets slightly to explore different markets each time
-  // This ensures agents research different markets, not just the same top ones
+  // Add rotation: shuffle top markets using deterministic but varying seed
+  // Use current time (rounded to 10 seconds) to create variation while maintaining determinism
+  const timeSeed = Math.floor(Date.now() / 10000); // Changes every 10 seconds
+  const agentSeed = agentId.charCodeAt(0) + agentId.charCodeAt(agentId.length - 1);
+  const rotationSeed = timeSeed + agentSeed;
+  
+  // Shuffle using deterministic seed based on time
   const shuffled = [...topMarkets];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    // Use deterministic but time-varying seed
+    const seed = `${rotationSeed}:${i}:${shuffled[i].id}`;
+    const hash = seed.split('').reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0);
+    }, 0);
+    const j = Math.abs(hash) % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   for (let i = shuffled.length - 1; i > 0; i--) {
     // Only shuffle within score bands to maintain quality
     const scoreBand = Math.floor(shuffled[i].score / 5); // Group by 5-point score bands
