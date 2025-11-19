@@ -776,7 +776,10 @@ const deduplicateArticles = (articles) => {
 const fetchNewsAPI = async () => {
   // SECURITY: Check if API key is configured
   if (!NEWS_API_KEY) {
-    console.warn('NEWS_API_KEY not configured, skipping NewsAPI');
+    // Only log occasionally to reduce log spam
+    if (Math.random() < 0.01) {
+      console.warn('NEWS_API_KEY not configured, skipping NewsAPI');
+    }
     return [];
   }
   // Get date from last 7 days for better news coverage
