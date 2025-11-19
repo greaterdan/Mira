@@ -13,6 +13,8 @@ import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import csrf from 'csrf';
 import session from 'express-session';
+import RedisStore from 'connect-redis';
+import { createClient } from 'redis';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { fetchAllMarkets } from './services/polymarketService.js';
@@ -211,7 +213,52 @@ if (isProduction && !process.env.SESSION_SECRET) {
   console.warn('   Generate a secure random string: openssl rand -base64 32');
 }
 
+// Configure session store - use Redis in production if available, otherwise MemoryStore
+let sessionStore;
+const redisUrl = process.env.REDIS_URL || process.env.REDISCLOUD_URL;
+
+if (redisUrl) {
+  try {
+    // Create Redis client
+    const redisClient = createClient({
+      url: redisUrl,
+    });
+    
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+    });
+    
+    // Connect to Redis (don't await - let it connect in background)
+    redisClient.connect().catch((err) => {
+      console.error('Failed to connect to Redis:', err);
+      console.warn('⚠️  Falling back to MemoryStore (not recommended for production)');
+    });
+    
+    // Use Redis store
+    sessionStore = new RedisStore({
+      client: redisClient,
+      prefix: 'probly:sess:',
+    });
+    
+    console.log('✅ Using Redis for session storage');
+  } catch (error) {
+    console.error('Failed to initialize Redis store:', error);
+    console.warn('⚠️  Falling back to MemoryStore (not recommended for production)');
+    sessionStore = undefined; // Will use default MemoryStore
+  }
+} else {
+  if (isProduction) {
+    console.warn('⚠️  WARNING: REDIS_URL not set - using MemoryStore (not recommended for production)');
+    console.warn('   Install Railway Redis addon or set REDIS_URL for production session storage');
+    console.warn('   Sessions will be lost on server restart and won\'t work across multiple instances');
+  } else {
+    console.log('ℹ️  Using MemoryStore for development (set REDIS_URL for production)');
+  }
+  sessionStore = undefined; // Will use default MemoryStore
+}
+
 app.use(session({
+  store: sessionStore, // Use Redis if available, otherwise MemoryStore
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
