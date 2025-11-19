@@ -58,10 +58,25 @@ export const LoginButton = ({
     // Listen for message from popup callback page
     const messageHandler = (event: MessageEvent) => {
       // Verify origin for security - allow same origin or API base URL origin
-      const apiOrigin = new URL(API_BASE_URL).origin;
       const currentOrigin = window.location.origin;
+      let apiOrigin: string | null = null;
       
-      if (event.origin !== apiOrigin && event.origin !== currentOrigin) {
+      // Handle empty API_BASE_URL (production - same domain)
+      if (API_BASE_URL) {
+        try {
+          apiOrigin = new URL(API_BASE_URL).origin;
+        } catch (e) {
+          // Invalid URL, ignore
+        }
+      }
+      
+      // Allow messages from same origin or API origin
+      const allowedOrigins = [currentOrigin];
+      if (apiOrigin && apiOrigin !== currentOrigin) {
+        allowedOrigins.push(apiOrigin);
+      }
+      
+      if (!allowedOrigins.includes(event.origin)) {
         console.warn('Rejected message from unauthorized origin:', event.origin);
         return;
       }
