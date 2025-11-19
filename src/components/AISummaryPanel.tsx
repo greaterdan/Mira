@@ -314,10 +314,14 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
               const uniqueTrades = new Map<string, any>();
               trades
                 .filter((t: any) => t.status === 'OPEN')
-                .sort((a: any, b: any) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime())
+                .sort((a: any, b: any) => {
+                  const timeA = a.openedAt ? new Date(a.openedAt).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                  const timeB = b.openedAt ? new Date(b.openedAt).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                  return timeB - timeA;
+                })
                 .forEach((trade: any) => {
                   // Use marketQuestion or marketId as key for deduplication
-                  const marketKey = trade.marketQuestion || trade.marketId;
+                  const marketKey = trade.marketQuestion || trade.market || trade.marketId;
                   if (!uniqueTrades.has(marketKey)) {
                     uniqueTrades.set(marketKey, trade);
                   }
@@ -343,16 +347,17 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
                   reasoningText = 'Analysis based on market data';
                 }
                 
+                const tradeTimestamp = trade.openedAt ? new Date(trade.openedAt) : (trade.timestamp ? new Date(trade.timestamp) : new Date());
                 newDecisions.push({
                   id: trade.id, // Use trade.id as stable ID (not index-based)
-                  agentName: agent?.displayName || agentId,
-                  agentEmoji: agent?.avatar || '🤖',
-                  timestamp: new Date(trade.openedAt),
+                  agentName: agent?.name || agent?.displayName || agentId,
+                  agentEmoji: agent?.emoji || agent?.avatar || '🤖',
+                  timestamp: tradeTimestamp,
                   action: 'TRADE',
-                  market: trade.marketQuestion || trade.marketId || 'Unknown Market',
-                  marketId: trade.marketId, // Store marketId for clicking
-                  decision: trade.side,
-                  confidence: Math.round(trade.confidence * 100),
+                  market: trade.marketQuestion || trade.market || trade.marketId || 'Unknown Market',
+                  marketId: trade.marketId || trade.predictionId, // Store marketId for clicking
+                  decision: trade.decision || trade.side,
+                  confidence: typeof trade.confidence === 'number' ? trade.confidence : Math.round((trade.confidence || 0) * 100),
                   reasoning: reasoningText,
                   fullReasoning: Array.isArray(trade.reasoning) ? trade.reasoning : (trade.reasoning ? [trade.reasoning] : []), // Store full reasoning for expansion
                   investmentUsd: trade.investmentUsd || 0, // Store investment amount
