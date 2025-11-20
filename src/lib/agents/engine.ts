@@ -88,7 +88,7 @@ function getDeterministicReasoning(scored: ScoredMarket, newsRelevance: NewsRele
   }
   
   // Agent-specific focus
-  if (agent.focusCategories.includes(scored.category)) {
+  if (scored.category !== 'Other' && agent.focusCategories.includes(scored.category as Category)) {
     reasons.push(`This ${scored.category} market aligns with ${agent.displayName}'s expertise - agent has specialized knowledge in this category`);
   }
   
