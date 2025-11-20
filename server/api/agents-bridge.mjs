@@ -63,6 +63,7 @@ try {
   }
   
   generateAgentTrades = agentsModule.generateAgentTrades;
+  getAgentResearch = agentsModule.getAgentResearch;
   getAgentProfile = domainModule.getAgentProfile;
   isValidAgentId = domainModule.isValidAgentId;
   ALL_AGENT_IDS = domainModule.ALL_AGENT_IDS;
@@ -82,6 +83,7 @@ try {
 
 export {
   generateAgentTrades,
+  getAgentResearch,
   getAgentProfile,
   isValidAgentId,
   ALL_AGENT_IDS,
