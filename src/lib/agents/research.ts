@@ -6,7 +6,7 @@
  */
 
 import type { AgentProfile, ScoredMarket, NewsArticle, NewsRelevance } from './domain';
-import { deterministicSeed, getDeterministicSide, getDeterministicConfidence, getDeterministicReasoning } from './deterministic';
+import { deterministicSeed, getDeterministicSide, getDeterministicConfidence, getDeterministicReasoning } from './engine';
 import { getAITradeDecision, isAIConfigured } from './ai-clients';
 import { searchWebForMarket, buildMarketSearchQuery, type WebSearchResult } from './web-search';
 

@@ -13,7 +13,7 @@ import { createHash } from 'crypto';
 /**
  * Create deterministic seed for a market
  */
-function deterministicSeed(agentId: string, marketId: string, index: number): string {
+export function deterministicSeed(agentId: string, marketId: string, index: number): string {
   return `${agentId}:${marketId}:${index}`;
 }
 
@@ -29,7 +29,7 @@ function deterministicNumber(seed: string): number {
 /**
  * Get deterministic side based on market and seed
  */
-function getDeterministicSide(scored: ScoredMarket, seed: string): TradeSide {
+export function getDeterministicSide(scored: ScoredMarket, seed: string): TradeSide {
   const num = deterministicNumber(seed);
   // Bias towards YES if probability > 0.5, NO if < 0.5
   const probBias = scored.currentProbability > 0.5 ? 0.6 : 0.4;
@@ -39,7 +39,7 @@ function getDeterministicSide(scored: ScoredMarket, seed: string): TradeSide {
 /**
  * Get deterministic confidence based on score and risk
  */
-function getDeterministicConfidence(scored: ScoredMarket, agent: AgentProfile, seed: string): number {
+export function getDeterministicConfidence(scored: ScoredMarket, agent: AgentProfile, seed: string): number {
   const baseConfidence = scored.score / 100;
   const riskMultiplier = agent.risk === 'HIGH' ? 1.1 : agent.risk === 'LOW' ? 0.9 : 1.0;
   const jitter = (deterministicNumber(seed + 'jitter') - 0.5) * 0.1; // ±5% jitter
@@ -50,7 +50,7 @@ function getDeterministicConfidence(scored: ScoredMarket, agent: AgentProfile, s
  * Get deterministic reasoning based on market components
  * Makes reasoning specific to the actual market data
  */
-function getDeterministicReasoning(scored: ScoredMarket, newsRelevance: NewsRelevance, agent: AgentProfile): string[] {
+export function getDeterministicReasoning(scored: ScoredMarket, newsRelevance: NewsRelevance, agent: AgentProfile): string[] {
   const reasons: string[] = [];
   const probPercent = (scored.currentProbability * 100).toFixed(1);
   const volumeK = (scored.volumeUsd / 1000).toFixed(1);
