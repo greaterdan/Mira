@@ -201,9 +201,10 @@ export async function getAgentsSummary(req, res) {
     
     // Try to get cached trades first (much faster for summary)
     // Only regenerate if cache is empty/expired
-    // Import bridge to get getCachedTradesQuick
+    // Import bridge to get getCachedTradesQuick and getAgentResearch
     const bridge = await import('./agents-bridge.mjs');
     const getCachedTradesQuick = bridge.getCachedTradesQuick;
+    const getAgentResearch = bridge.getAgentResearch || (() => []); // Fallback if not available
     
     const results = await Promise.allSettled(
       agentIds.map(async (agentId) => {
@@ -228,10 +229,6 @@ export async function getAgentsSummary(req, res) {
     );
     
     const allTrades = results.map(r => r.status === 'fulfilled' ? r.value : []);
-    
-    // Get research decisions for each agent (generated alongside trades)
-    const bridge = await import('./agents-bridge.mjs');
-    const getAgentResearch = bridge.getAgentResearch || (() => []); // Fallback if not available
     
     // Map trades AND research to frontend format for summary
     const tradesByAgent = agentIds.reduce((acc, agentId, index) => {
