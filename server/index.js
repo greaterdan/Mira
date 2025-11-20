@@ -503,6 +503,20 @@ if (redisUrl) {
     });
     
     console.log('[WALLET] ✅ Wallet storage configured (Redis)');
+    
+    // Also set Redis client for agent cache persistence
+    try {
+      // Try compiled JS first, then TypeScript
+      const cacheModule = await import('../dist-server/lib/agents/cache.js').catch(() => 
+        import('../src/lib/agents/cache.ts')
+      );
+      if (cacheModule && cacheModule.setRedisClient && typeof cacheModule.setRedisClient === 'function') {
+        cacheModule.setRedisClient(walletStorageClient);
+        console.log('[CACHE] ✅ Agent cache Redis client configured');
+      }
+    } catch (cacheError) {
+      console.warn('[CACHE] ⚠️  Failed to set Redis client for agent cache:', cacheError.message);
+    }
   } catch (error) {
     console.warn('[WALLET] ⚠️  Failed to create wallet storage Redis client:', error.message);
     walletStorageClient = null;

@@ -168,7 +168,8 @@ export async function getCachedTradesQuick(agentId) {
     let entry = agentCache.get(agentId);
     // If not in memory, try Redis (for persistence across restarts)
     if (!entry && redisClient) {
-        entry = await loadFromRedis(agentId);
+        const redisEntry = await loadFromRedis(agentId);
+        entry = redisEntry || undefined;
     }
     if (!entry) {
         return null; // Cache miss

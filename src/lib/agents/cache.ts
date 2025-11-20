@@ -198,11 +198,12 @@ export async function setCachedAgentTrades(
  */
 export async function getCachedTradesQuick(agentId: AgentId): Promise<AgentTrade[] | null> {
   // Try in-memory cache first (fastest)
-  let entry = agentCache.get(agentId);
+  let entry: AgentCacheEntry | undefined = agentCache.get(agentId);
   
   // If not in memory, try Redis (for persistence across restarts)
   if (!entry && redisClient) {
-    entry = await loadFromRedis(agentId);
+    const redisEntry = await loadFromRedis(agentId);
+    entry = redisEntry || undefined;
   }
   
   if (!entry) {
