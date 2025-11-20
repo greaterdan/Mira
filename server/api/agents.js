@@ -291,7 +291,7 @@ export async function getAgentsSummary(req, res) {
     const researchByAgent = agentIds.reduce((acc, agentId) => {
       try {
         const research = getAgentResearch(agentId);
-        const mappedResearch = research.map((r: any) => ({
+        const mappedResearch = research.map(r => ({
           id: r.id,
           timestamp: new Date(r.timestamp),
           market: r.marketQuestion || r.marketId,
@@ -385,7 +385,6 @@ export async function getAgentsSummary(req, res) {
     });
   }
 }
-
 
 
 
