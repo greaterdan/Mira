@@ -8,14 +8,22 @@
 // Detect environment - Railway sets NODE_ENV=production
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT === 'production';
 
+// Log environment detection
+console.log('[API] 🔍 Environment Detection:');
+console.log('[API]   NODE_ENV:', process.env.NODE_ENV);
+console.log('[API]   RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT);
+console.log('[API]   isProduction:', isProduction);
+
+let tsxRegistered = false;
+
 if (isProduction) {
   console.log('[API] 🚀 Production mode: Only loading compiled JavaScript');
+  // NEVER register tsx in production - we only use compiled JS
 } else {
   console.log('[API] 🔧 Development mode: May use TypeScript fallback');
   
   // CRITICAL: Only register tsx in development
   // In production, we MUST use compiled JS
-  let tsxRegistered = false;
   try {
     const tsxApi = await import('tsx/esm/api').catch(() => null);
     if (tsxApi?.register) {
@@ -43,15 +51,13 @@ if (isProduction) {
 let generateAgentTrades, getAgentProfile, isValidAgentId, ALL_AGENT_IDS, buildAgentSummary, computeSummaryStats, calculateAllAgentStats, getCachedTradesQuick, getAgentResearch;
 
 try {
-  // CRITICAL: Wait a moment to ensure tsx is fully registered
-  if (!tsxRegistered) {
+  // In development, wait for tsx if needed
+  if (!isProduction && !tsxRegistered) {
     console.log('[API] ⏳ Waiting for tsx registration...');
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   
-  // Import TypeScript modules (tsx will handle .ts extension)
-  console.log('[API] Attempting to load TypeScript modules...');
-  console.log('[API] tsx registered:', tsxRegistered);
+  console.log('[API] 📦 Attempting to load agent modules...');
   
   // CRITICAL: In production, ONLY load compiled JS - NEVER TypeScript
   // Railway must have compiled JS files from build:server
