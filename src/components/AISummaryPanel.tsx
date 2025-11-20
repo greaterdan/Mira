@@ -681,10 +681,9 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
           <motion.div
             className="w-2 h-2 rounded-full bg-trade-yes"
             animate={{
-              scale: [1, 1.3, 1],
-              opacity: [1, 0.7, 1],
+              opacity: [1, 0.5, 1],
             }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           />
           <span className="text-[12px] text-muted-foreground font-mono">LIVE</span>
         </div>
