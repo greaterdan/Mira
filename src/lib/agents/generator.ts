@@ -256,7 +256,7 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
 /**
  * Get research decisions for an agent
  */
-export function getAgentResearch(agentId: AgentId): any[] {
+export function getAgentResearch(agentId: AgentId): ResearchDecision[] {
   return researchCache.get(agentId) || [];
 }
 
