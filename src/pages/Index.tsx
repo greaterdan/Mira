@@ -1381,7 +1381,7 @@ const Index = () => {
               </div>
             </ResizablePanel>
             <ResizableHandle withHandle style={{ pointerEvents: 'auto', zIndex: 50 }} />
-            <ResizablePanel defaultSize={100 - leftPanelSize} minSize={70} maxSize={85} style={{ pointerEvents: 'none' }} />
+            <ResizablePanel defaultSize={100 - leftPanelSize} minSize={70} maxSize={85} style={{ pointerEvents: 'auto' }} />
           </ResizablePanelGroup>
         </div>
 
