@@ -1328,7 +1328,8 @@ const Index = () => {
         </div>
 
         {/* LEFT: Performance Chart - Overlay */}
-        {isPerformanceOpen && (
+        {/* Keep chart mounted but hidden when panel is closed - prevents data loss */}
+        <div style={{ display: isPerformanceOpen ? 'block' : 'none' }}>
           <ResizablePanelGroup
             direction="horizontal"
             className="absolute inset-0 pointer-events-none"
@@ -1375,7 +1376,7 @@ const Index = () => {
             <ResizableHandle withHandle style={{ pointerEvents: 'auto', zIndex: 50 }} />
             <ResizablePanel defaultSize={100 - leftPanelSize} minSize={70} maxSize={85} style={{ pointerEvents: 'none' }} />
           </ResizablePanelGroup>
-        )}
+        </div>
 
         {/* RIGHT: AI Summary Panel - Overlay */}
         {isSummaryOpen && (
