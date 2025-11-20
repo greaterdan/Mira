@@ -245,18 +245,6 @@ export async function generateTradeForMarket(
   // Round to nearest $10 for cleaner display (was $5, but $10 gives more variety)
   const finalInvestment = Math.round(investmentUsd / 10) * 10;
   
-  // Determine if this is a trade or research decision
-  // Low score markets (< 8) become research, high score markets become trades
-  // But also add some randomness so agents research some good markets too
-  const marketHash = scored.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const isResearchDecision = isLowScore || (marketHash % 4) === 0; // ~25% of even good markets become research
-  
-  // For research decisions, don't create a trade - return null but we'll handle it in generator
-  if (isResearchDecision) {
-    // Return a special marker that this is research (we'll handle it in generator.ts)
-    return null; // Generator will create research decision separately
-  }
-  
   // Determine trade status - close some trades to show history
   // Close trades deterministically based on market ID hash (so same market = same status)
   const shouldClose = (marketHash % 3) === 0; // Close ~33% of trades
