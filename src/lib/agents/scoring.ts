@@ -6,7 +6,8 @@
  * news relevance, and probability.
  */
 
-import type { Market, ScoredMarket, NewsArticle, NewsRelevance, AgentProfile } from './domain';
+import type { Market, ScoredMarket, NewsArticle, NewsRelevance, AgentProfile, Category } from './domain';
+import type { AgentAdaptiveConfig } from './adaptive';
 
 /**
  * Compute news relevance for a market

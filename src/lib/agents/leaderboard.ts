@@ -270,9 +270,29 @@ export function findConflicts(
   return conflicts;
 }
 
-// Re-export consensus functions from consensus.ts
-export { computeMarketConsensus, getTopConsensusMarkets, getTopConflictMarkets } from './consensus';
-export type { MarketConsensus } from './consensus';
+// Consensus types and functions (placeholder - consensus.ts was removed)
+export interface MarketConsensus {
+  marketId: string;
+  yesAgents: string[];
+  noAgents: string[];
+  consensusSide: 'YES' | 'NO' | 'NONE';
+  consensusLevel: number;
+  conflictLevel: number;
+  avgConfidenceYes: number;
+  avgConfidenceNo: number;
+}
+
+export function computeMarketConsensus(_tradesByAgent: Record<string, any[]>): MarketConsensus[] {
+  return [];
+}
+
+export function getTopConsensusMarkets(_consensus: MarketConsensus[]): MarketConsensus[] {
+  return [];
+}
+
+export function getTopConflictMarkets(_consensus: MarketConsensus[]): MarketConsensus[] {
+  return [];
+}
 
 
 

@@ -79,7 +79,7 @@ async function callOpenAI(context: MarketContext): Promise<AITradeDecision> {
     throw new Error(`OpenAI API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.choices[0]?.message?.content;
   if (!content) {
     throw new Error('No response from OpenAI');
@@ -126,7 +126,7 @@ async function callAnthropic(context: MarketContext, webSearchResults?: any[]): 
     throw new Error(`Anthropic API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.content[0]?.text;
   if (!content) {
     throw new Error('No response from Anthropic');
@@ -194,7 +194,7 @@ async function callGroq(context: MarketContext, webSearchResults?: any[]): Promi
     throw new Error(`xAI GROK API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.choices[0]?.message?.content;
   if (!content) {
     throw new Error('No response from xAI GROK');
@@ -238,7 +238,7 @@ async function callGoogleAI(context: MarketContext, webSearchResults?: any[]): P
     throw new Error(`Google AI API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.candidates[0]?.content?.parts[0]?.text;
   if (!content) {
     throw new Error('No response from Google AI');
@@ -287,7 +287,7 @@ async function callDeepSeek(context: MarketContext, webSearchResults?: any[]): P
     throw new Error(`DeepSeek API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.choices[0]?.message?.content;
   if (!content) {
     throw new Error('No response from DeepSeek');
@@ -350,7 +350,7 @@ async function callQwen(context: MarketContext, webSearchResults?: any[]): Promi
     throw new Error(`Qwen API error: ${response.status} - ${JSON.stringify(error)}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const content = data.output?.choices[0]?.message?.content;
   if (!content) {
     throw new Error('No response from Qwen');

@@ -14,9 +14,8 @@ const ALL_AGENT_IDS = Object.keys(AGENT_PROFILES) as AgentId[];
 import { fetchAllMarkets } from '../markets/polymarket';
 import { fetchLatestNews } from '../news/aggregator';
 import { generateAgentTrades } from './generator';
-import { getPersistenceAdapter } from './persistence';
+import { getPersistenceAdapter, portfolioToRecord } from './persistence';
 import { createInitialPortfolio, updatePortfolioMetrics } from './portfolio';
-import { portfolioToRecord } from './persistence';
 
 /**
  * Trading cycle configuration

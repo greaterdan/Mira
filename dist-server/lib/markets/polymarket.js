@@ -136,7 +136,7 @@ export async function fetchAllMarkets() {
                     raw: prediction, // Store full prediction for reference
                 };
             }).filter((m) => {
-                return m !== null && m.id && m.question && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
+                return m !== null && Boolean(m.id) && Boolean(m.question) && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
             });
             console.log(`[Polymarket] ✅ Mapped to ${markets.length} valid markets with matching IDs`);
             // Update cache (separate cache from bubble maps to avoid conflicts)

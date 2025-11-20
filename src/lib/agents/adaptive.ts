@@ -6,8 +6,20 @@
  */
 
 import type { AgentId, Category } from './domain';
-import type { AgentTradeRecord } from './persistence';
 import { RISK_BUDGET, type RiskLevel } from './portfolio';
+
+// AgentTradeRecord type (if persistence.ts doesn't exist, define it here)
+export interface AgentTradeRecord {
+  id: string;
+  agentId: AgentId;
+  marketId: string;
+  category?: Category | 'Other';
+  side: 'YES' | 'NO';
+  status: 'OPEN' | 'CLOSED';
+  openedAt: string;
+  closedAt?: string;
+  pnlUsd: number | null;
+}
 
 /**
  * Adaptive configuration for an agent

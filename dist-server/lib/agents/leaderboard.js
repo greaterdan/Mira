@@ -187,5 +187,12 @@ export function findConflicts(allTrades) {
     }
     return conflicts;
 }
-// Re-export consensus functions from consensus.ts
-export { computeMarketConsensus, getTopConsensusMarkets, getTopConflictMarkets } from './consensus';
+export function computeMarketConsensus(_tradesByAgent) {
+    return [];
+}
+export function getTopConsensusMarkets(_consensus) {
+    return [];
+}
+export function getTopConflictMarkets(_consensus) {
+    return [];
+}

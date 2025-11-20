@@ -13,9 +13,14 @@ import type { AgentId, Market } from './domain';
 export const STARTING_CAPITAL_USD = 3000;
 
 /**
+ * Risk level type
+ */
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+/**
  * Risk budget per trade by risk level (USD)
  */
-export const RISK_BUDGET: Record<'LOW' | 'MEDIUM' | 'HIGH', number> = {
+export const RISK_BUDGET: Record<RiskLevel, number> = {
   LOW: 50,
   MEDIUM: 100,
   HIGH: 150,

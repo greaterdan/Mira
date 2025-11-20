@@ -116,8 +116,8 @@ export async function fetchAllMarkets(): Promise<Market[]> {
     if (isServerSide) {
       // CRITICAL: Use the SAME transformed predictions as the frontend
       // This ensures market IDs match prediction IDs exactly
-      const { fetchAllMarkets } = await import('../../../server/services/polymarketService.js');
-      const { transformMarkets } = await import('../../../server/services/marketTransformer.js');
+      const { fetchAllMarkets } = await import('../../../server/services/polymarketService.js') as any;
+      const { transformMarkets } = await import('../../../server/services/marketTransformer.js') as any;
       
       // Fetch markets using the same function as bubble maps
       const rawMarkets = await fetchAllMarkets({
@@ -165,7 +165,7 @@ export async function fetchAllMarkets(): Promise<Market[]> {
           raw: prediction, // Store full prediction for reference
         };
       }).filter((m: Market | null): m is Market => {
-        return m !== null && m.id && m.question && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
+        return m !== null && Boolean(m.id) && Boolean(m.question) && !isNaN(m.volumeUsd) && !isNaN(m.currentProbability);
       });
       
       console.log(`[Polymarket] ✅ Mapped to ${markets.length} valid markets with matching IDs`);

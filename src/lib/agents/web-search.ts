@@ -60,7 +60,7 @@ async function searchWithSerpAPI(query: string, apiKey: string): Promise<WebSear
     throw new Error(`SerpAPI error: ${response.status}`);
   }
   
-  const data = await response.json();
+    const data = await response.json() as any;
   const results = data.organic_results || [];
   
   return results.slice(0, 5).map((result: any) => ({
@@ -89,7 +89,7 @@ async function searchWithGoogleCustomSearch(
     throw new Error(`Google Custom Search error: ${response.status}`);
   }
   
-  const data = await response.json();
+    const data = await response.json() as any;
   const results = data.items || [];
   
   return results.slice(0, 5).map((result: any) => ({
