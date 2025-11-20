@@ -383,6 +383,7 @@ function buildTradePrompt(context: MarketContext, agentName: string, webSearchRe
   const volumeK = (context.volumeUsd / 1000).toFixed(1);
   const liquidityK = (context.liquidityUsd / 1000).toFixed(1);
   const priceChange = (context.priceChange24h * 100).toFixed(1);
+  const priceChangeNum = parseFloat(priceChange);
   
   // Determine market sentiment from probability
   const marketSentiment = context.currentProbability > 0.6 
@@ -399,7 +400,7 @@ Category: ${context.category}
 Current Probability: ${probPercent}% (${marketSentiment})
 Trading Volume: $${volumeK}k
 Liquidity: $${liquidityK}k
-24h Price Change: ${priceChange > 0 ? '+' : ''}${priceChange}%${newsSummary}${webSearchSummary}
+24h Price Change: ${priceChangeNum > 0 ? '+' : ''}${priceChange}%${newsSummary}${webSearchSummary}
 
 YOUR TASK:
 1. Analyze WHY this market is worth trading (or not)
