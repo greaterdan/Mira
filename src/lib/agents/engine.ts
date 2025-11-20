@@ -48,31 +48,55 @@ function getDeterministicConfidence(scored: ScoredMarket, agent: AgentProfile, s
 
 /**
  * Get deterministic reasoning based on market components
+ * Makes reasoning specific to the actual market data
  */
-function getDeterministicReasoning(scored: ScoredMarket, newsRelevance: NewsRelevance): string[] {
+function getDeterministicReasoning(scored: ScoredMarket, newsRelevance: NewsRelevance, agent: AgentProfile): string[] {
   const reasons: string[] = [];
+  const probPercent = (scored.currentProbability * 100).toFixed(1);
+  const volumeK = (scored.volumeUsd / 1000).toFixed(1);
+  const priceChange = (scored.priceChange24h * 100).toFixed(1);
   
+  // Specific probability analysis
+  if (scored.currentProbability > 0.55 && scored.currentProbability < 0.65) {
+    reasons.push(`${probPercent}% probability suggests slight YES lean, but market may be undervaluing the outcome - potential value play`);
+  } else if (scored.currentProbability < 0.45 && scored.currentProbability > 0.35) {
+    reasons.push(`${probPercent}% probability indicates NO is favored, but if outcome occurs, payoff would be significant`);
+  } else if (scored.currentProbability >= 0.45 && scored.currentProbability <= 0.55) {
+    reasons.push(`Probability at ${probPercent}% is near 50/50 - balanced risk/reward with potential for either outcome`);
+  } else {
+    reasons.push(`Current ${probPercent}% probability ${scored.currentProbability > 0.5 ? 'favors YES' : 'favors NO'} - ${scored.currentProbability > 0.5 ? 'market expects outcome' : 'market expects no outcome'}`);
+  }
+  
+  // Specific volume/liquidity analysis
   if (scored.components.volumeScore > 20) {
-    reasons.push('High trading volume indicates strong market interest');
+    reasons.push(`$${volumeK}k trading volume shows active market participation - ${scored.volumeUsd > 50000 ? 'high' : 'moderate'} interest from traders`);
   }
   if (scored.components.liquidityScore > 15) {
-    reasons.push('Strong liquidity provides good entry/exit opportunities');
+    const liquidityK = (scored.liquidityUsd / 1000).toFixed(1);
+    reasons.push(`$${liquidityK}k liquidity allows for ${scored.liquidityUsd > 20000 ? 'large' : 'moderate'} position sizes with minimal slippage`);
   }
+  
+  // Specific price movement analysis
   if (scored.components.priceMovementScore > 10) {
-    reasons.push('Significant price movement suggests momentum');
+    const direction = scored.priceChange24h > 0 ? 'upward' : 'downward';
+    reasons.push(`${priceChange.startsWith('-') ? '' : '+'}${priceChange}% price movement in last 24h shows ${direction} momentum - ${scored.priceChange24h > 0 ? 'YES gaining' : 'NO gaining'} traction`);
   }
-  if (scored.components.newsScore > 15) {
-    reasons.push(`Recent news coverage (${newsRelevance.count} articles) supports market activity`);
+  
+  // Specific news analysis
+  if (scored.components.newsScore > 15 && newsRelevance.count > 0) {
+    reasons.push(`${newsRelevance.count} recent news article${newsRelevance.count > 1 ? 's' : ''} directly relate to "${scored.question.substring(0, 40)}..." - indicates active information flow`);
   }
-  if (scored.components.probScore > 7) {
-    reasons.push('Probability near 50% provides good risk/reward');
+  
+  // Agent-specific focus
+  if (agent.focusCategories.includes(scored.category)) {
+    reasons.push(`This ${scored.category} market aligns with ${agent.displayName}'s expertise - agent has specialized knowledge in this category`);
   }
   
   if (reasons.length === 0) {
-    reasons.push('Market meets minimum criteria for trading');
+    reasons.push(`Market "${scored.question.substring(0, 50)}..." meets trading criteria with ${probPercent}% probability and $${volumeK}k volume`);
   }
   
-  return reasons;
+  return reasons.slice(0, 4); // Max 4 specific reasons
 }
 
 /**
@@ -144,16 +168,10 @@ export async function generateTradeForMarket(
         combinedContext.push(...webArticles);
       }
       
-      const aiDecision = await getAITradeDecision(agent.id, scored, combinedContext);
+      const aiDecision = await getAITradeDecision(agent.id, scored, combinedContext, webSearchResults);
       side = aiDecision.side;
       confidence = aiDecision.confidence;
-      
-      // Add web search note to reasoning (concise)
-      reasoning = aiDecision.reasoning;
-      if (webSearchResults.length > 0) {
-        const webNote = `Web research: ${webSearchResults.length} sources analyzed`;
-        reasoning = [webNote, ...reasoning].slice(0, 3); // Max 3 bullets to save credits
-      }
+      reasoning = aiDecision.reasoning; // AI already includes web search in reasoning via prompt
       
       // Apply risk adjustment to AI confidence
       if (agent.risk === 'HIGH') {
@@ -172,13 +190,25 @@ export async function generateTradeForMarket(
       // Fallback to deterministic
       side = getDeterministicSide(scored, seed);
       confidence = getDeterministicConfidence(scored, agent, seed);
-      reasoning = getDeterministicReasoning(scored, newsRelevance);
+      reasoning = getDeterministicReasoning(scored, newsRelevance, agent);
+      
+      // Add web search context if available
+      if (webSearchResults.length > 0) {
+        const webInsight = `Web research found ${webSearchResults.length} source${webSearchResults.length > 1 ? 's' : ''} - ${webSearchResults[0]?.snippet?.substring(0, 80) || 'relevant information'}...`;
+        reasoning = [webInsight, ...reasoning].slice(0, 4);
+      }
     }
   } else {
     // Use deterministic logic
     side = getDeterministicSide(scored, seed);
     confidence = getDeterministicConfidence(scored, agent, seed);
-    reasoning = getDeterministicReasoning(scored, newsRelevance);
+    reasoning = getDeterministicReasoning(scored, newsRelevance, agent);
+    
+    // Add web search context if available
+    if (webSearchResults.length > 0) {
+      const webInsight = `Web research found ${webSearchResults.length} source${webSearchResults.length > 1 ? 's' : ''} - ${webSearchResults[0]?.snippet?.substring(0, 80) || 'relevant information'}...`;
+      reasoning = [webInsight, ...reasoning].slice(0, 4);
+    }
   }
   
   // Calculate base position size (simplified - would use portfolio logic)

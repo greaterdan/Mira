@@ -88,7 +88,7 @@ export async function generateResearchForMarket(
         combinedContext.push(...webArticles);
       }
       
-      const aiDecision = await getAITradeDecision(agent.id, scored, combinedContext);
+      const aiDecision = await getAITradeDecision(agent.id, scored, combinedContext, webSearchResults);
       // For research, allow NEUTRAL if confidence is low
       if (aiDecision.confidence < 0.5) {
         side = 'NEUTRAL';
@@ -98,13 +98,8 @@ export async function generateResearchForMarket(
         confidence = aiDecision.confidence;
       }
       
-      // Add web search context to reasoning (concise)
+      // AI already includes web search in reasoning via prompt
       reasoning = aiDecision.reasoning;
-      if (webSearchResults.length > 0) {
-        // Add brief note about web research (keep it short to save credits)
-        const webNote = `Web research found ${webSearchResults.length} relevant sources`;
-        reasoning = [webNote, ...reasoning].slice(0, 3); // Max 3 bullets
-      }
     } catch (error) {
       // Fallback to deterministic
       const deterministicSide = getDeterministicSide(scored, seed);
@@ -119,9 +114,10 @@ export async function generateResearchForMarket(
       }
       
       // Include web search in reasoning if available
-      reasoning = getDeterministicReasoning(scored, newsRelevance);
+      reasoning = getDeterministicReasoning(scored, newsRelevance, agent);
       if (webSearchResults.length > 0) {
-        reasoning = [`Found ${webSearchResults.length} web sources`, ...reasoning].slice(0, 3);
+        const webInsight = `Web research found ${webSearchResults.length} source${webSearchResults.length > 1 ? 's' : ''} - ${webSearchResults[0]?.snippet?.substring(0, 80) || 'relevant information'}...`;
+        reasoning = [webInsight, ...reasoning].slice(0, 4);
       }
     }
   } else {
@@ -135,9 +131,10 @@ export async function generateResearchForMarket(
       side = deterministicSide;
       confidence = getDeterministicConfidence(scored, agent, seed);
     }
-    reasoning = getDeterministicReasoning(scored, newsRelevance);
+    reasoning = getDeterministicReasoning(scored, newsRelevance, agent);
     if (webSearchResults.length > 0) {
-      reasoning = [`Found ${webSearchResults.length} web sources`, ...reasoning].slice(0, 3);
+      const webInsight = `Web research found ${webSearchResults.length} source${webSearchResults.length > 1 ? 's' : ''} - ${webSearchResults[0]?.snippet?.substring(0, 80) || 'relevant information'}...`;
+      reasoning = [webInsight, ...reasoning].slice(0, 4);
     }
   }
   

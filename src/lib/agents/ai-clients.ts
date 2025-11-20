@@ -91,13 +91,13 @@ async function callOpenAI(context: MarketContext): Promise<AITradeDecision> {
 /**
  * Anthropic API (Claude 4.5)
  */
-async function callAnthropic(context: MarketContext): Promise<AITradeDecision> {
+async function callAnthropic(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY not configured');
   }
 
-  const prompt = buildTradePrompt(context, 'Claude 4.5');
+  const prompt = buildTradePrompt(context, 'Claude 4.5', webSearchResults);
   
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -157,13 +157,13 @@ async function callAnthropic(context: MarketContext): Promise<AITradeDecision> {
 /**
  * xAI GROK API (GROK 4)
  */
-async function callGroq(context: MarketContext): Promise<AITradeDecision> {
+async function callGroq(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) {
     throw new Error('GROK_API_KEY not configured');
   }
 
-  const prompt = buildTradePrompt(context, 'GROK 4');
+  const prompt = buildTradePrompt(context, 'GROK 4', webSearchResults);
   
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -206,13 +206,13 @@ async function callGroq(context: MarketContext): Promise<AITradeDecision> {
 /**
  * Google AI API (Gemini 2.5)
  */
-async function callGoogleAI(context: MarketContext): Promise<AITradeDecision> {
+async function callGoogleAI(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_AI_API_KEY not configured');
   }
 
-  const prompt = buildTradePrompt(context, 'Gemini 2.5');
+  const prompt = buildTradePrompt(context, 'Gemini 2.5', webSearchResults);
   
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
     method: 'POST',
@@ -250,13 +250,13 @@ async function callGoogleAI(context: MarketContext): Promise<AITradeDecision> {
 /**
  * DeepSeek API (DEEPSEEK V3)
  */
-async function callDeepSeek(context: MarketContext): Promise<AITradeDecision> {
+async function callDeepSeek(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new Error('DEEPSEEK_API_KEY not configured');
   }
 
-  const prompt = buildTradePrompt(context, 'DEEPSEEK V3');
+  const prompt = buildTradePrompt(context, 'DEEPSEEK V3', webSearchResults);
   
   const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
     method: 'POST',
@@ -299,13 +299,13 @@ async function callDeepSeek(context: MarketContext): Promise<AITradeDecision> {
 /**
  * Qwen API (QWEN 2.5)
  */
-async function callQwen(context: MarketContext): Promise<AITradeDecision> {
+async function callQwen(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.QWEN_API_KEY;
   if (!apiKey) {
     throw new Error('QWEN_API_KEY not configured');
   }
 
-  const prompt = buildTradePrompt(context, 'QWEN 2.5');
+  const prompt = buildTradePrompt(context, 'QWEN 2.5', webSearchResults);
   
   const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
     method: 'POST',
@@ -362,28 +362,69 @@ async function callQwen(context: MarketContext): Promise<AITradeDecision> {
 /**
  * Build prompt for AI decision
  */
-function buildTradePrompt(context: MarketContext, agentName: string): string {
+function buildTradePrompt(context: MarketContext, agentName: string, webSearchResults?: any[]): string {
+  // Build detailed news summary with snippets
   const newsSummary = context.relevantNews.length > 0
-    ? `\n\nRelevant News:\n${context.relevantNews.slice(0, 5).map(n => `- ${n.title} (${n.source}, ${new Date(n.publishedAt).toLocaleDateString()})`).join('\n')}`
-    : '\n\nNo recent relevant news.';
+    ? `\n\nRelevant News Articles:\n${context.relevantNews.slice(0, 5).map((n, idx) => {
+        const date = new Date(n.publishedAt);
+        return `${idx + 1}. "${n.title}" - ${n.source} (${date.toLocaleDateString()})`;
+      }).join('\n')}`
+    : '\n\nNo recent relevant news articles found.';
 
-  return `Analyze this prediction market data and provide your assessment:
+  // Build web search summary if available
+  const webSearchSummary = webSearchResults && webSearchResults.length > 0
+    ? `\n\nWeb Research Findings:\n${webSearchResults.slice(0, 3).map((result, idx) => {
+        return `${idx + 1}. ${result.title || 'Source'} (${result.source || 'Web'}): ${(result.snippet || '').substring(0, 200)}`;
+      }).join('\n\n')}`
+    : '';
 
-Market Question: ${context.question}
+  // Calculate key metrics for context
+  const probPercent = (context.currentProbability * 100).toFixed(1);
+  const volumeK = (context.volumeUsd / 1000).toFixed(1);
+  const liquidityK = (context.liquidityUsd / 1000).toFixed(1);
+  const priceChange = (context.priceChange24h * 100).toFixed(1);
+  
+  // Determine market sentiment from probability
+  const marketSentiment = context.currentProbability > 0.6 
+    ? 'bullish (leaning YES)' 
+    : context.currentProbability < 0.4 
+    ? 'bearish (leaning NO)' 
+    : 'neutral (near 50/50)';
+
+  return `You are ${agentName}, an expert prediction market trader. Analyze this market and make a trading decision.
+
+MARKET DETAILS:
+Question: "${context.question}"
 Category: ${context.category}
-Current Probability: ${(context.currentProbability * 100).toFixed(1)}%
-Trading Volume: $${(context.volumeUsd / 1000).toFixed(1)}k
-Liquidity: $${(context.liquidityUsd / 1000).toFixed(1)}k
-24h Price Change: ${(context.priceChange24h * 100).toFixed(1)}%${newsSummary}
+Current Probability: ${probPercent}% (${marketSentiment})
+Trading Volume: $${volumeK}k
+Liquidity: $${liquidityK}k
+24h Price Change: ${priceChange > 0 ? '+' : ''}${priceChange}%${newsSummary}${webSearchSummary}
 
-Based on this data analysis, provide your assessment in JSON format:
+YOUR TASK:
+1. Analyze WHY this market is worth trading (or not)
+2. Explain SPECIFIC factors that support your decision
+3. Reference actual data points (probability, volume, news, web research)
+4. Be specific about what convinced you to trade ${context.currentProbability > 0.5 ? 'YES' : 'NO'}
+
+IMPORTANT: Your reasoning must be SPECIFIC to this market. Do NOT use generic phrases like "high volume indicates interest" or "good liquidity". Instead, explain:
+- What specific probability level makes this attractive (e.g., "56% is undervalued because...")
+- What news/web findings directly relate to the outcome
+- Why the volume/liquidity/price movement matters FOR THIS SPECIFIC MARKET
+- What unique factors make this trade worth the investment
+
+Respond in JSON format:
 {
   "side": "YES" or "NO",
   "confidence": 0.0 to 1.0,
-  "reasoning": ["analysis point 1", "analysis point 2", "analysis point 3"]
+  "reasoning": [
+    "Specific reason 1 that explains WHY you're trading this direction (reference actual data)",
+    "Specific reason 2 with concrete details from news/web research",
+    "Specific reason 3 explaining what makes this market unique and worth the trade"
+  ]
 }
 
-This is for data analysis purposes. Provide your assessment based on the probability, volume, liquidity, price movement, and news data.`;
+Each reasoning point should be 1-2 sentences and reference specific data from the market, news, or web research above.`;
 }
 
 /**
