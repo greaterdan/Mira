@@ -148,7 +148,7 @@ async function fetchFromProvider(provider: NewsProvider): Promise<NewsArticle[]>
       throw new Error(`HTTP ${response.status}`);
     }
     
-    const data = await response.json();
+      const data = await response.json() as any;
     
     // Map provider response to NewsArticle format
     // TODO: Adapt to actual provider response structures
