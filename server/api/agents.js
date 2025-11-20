@@ -8,7 +8,7 @@
 
 // Import TypeScript modules via bridge (uses tsx)
 // Load asynchronously to not block server startup
-let generateAgentTrades, getAgentProfile, isValidAgentId, ALL_AGENT_IDS, buildAgentSummary, computeSummaryStats, calculateAllAgentStats;
+let generateAgentTrades, getAgentProfile, isValidAgentId, ALL_AGENT_IDS, buildAgentSummary, computeSummaryStats, calculateAllAgentStats, getAgentsStats;
 let agentsModuleLoading = false;
 let agentsModuleLoaded = false;
 const isProductionEnv = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT === 'production';
@@ -50,7 +50,7 @@ let agentWarmupCompleted = false;
   ALL_AGENT_IDS = bridge.ALL_AGENT_IDS;
   buildAgentSummary = bridge.buildAgentSummary;
   computeSummaryStats = bridge.computeSummaryStats;
-    calculateAllAgentStats = bridge.calculateAllAgentStats;
+  calculateAllAgentStats = bridge.calculateAllAgentStats;
     
     agentsModuleLoaded = true;
     console.log('[API] ✅ TypeScript modules loaded successfully');
