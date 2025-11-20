@@ -308,8 +308,11 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
               const agentId = agentSummary.agentId;
               const trades = data.tradesByAgent?.[agentId] || [];
               
-              // Get all recent trades (OPEN and CLOSED) and deduplicate by market
-              const uniqueTrades = new Map<string, any>();
+              // Get all recent trades (OPEN and CLOSED) and research decisions
+              // Include both trades AND research (research shows analysis without trading)
+              const uniqueDecisions = new Map<string, any>();
+              
+              // Process trades
               trades
                 .sort((a: any, b: any) => {
                   const timeA = a.openedAt ? new Date(a.openedAt).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
@@ -319,45 +322,72 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
                 .forEach((trade: any) => {
                   // Use marketQuestion or marketId as key for deduplication
                   const marketKey = trade.marketQuestion || trade.market || trade.marketId;
-                  if (!uniqueTrades.has(marketKey)) {
-                    uniqueTrades.set(marketKey, trade);
+                  if (!uniqueDecisions.has(marketKey)) {
+                    uniqueDecisions.set(marketKey, { ...trade, type: 'TRADE' });
                   }
                 });
               
-              // Create a decision for each unique trade (up to 5 most recent)
-              const uniqueTradesArray = Array.from(uniqueTrades.values()).slice(0, 5);
+              // Process research decisions (if available in API response)
+              // Research decisions have action: 'RESEARCH' instead of 'TRADE'
+              const researchDecisions = data.researchByAgent?.[agentId] || [];
+              researchDecisions
+                .sort((a: any, b: any) => {
+                  const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                  const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                  return timeB - timeA;
+                })
+                .forEach((research: any) => {
+                  const marketKey = research.marketQuestion || research.market || research.marketId;
+                  if (!uniqueDecisions.has(marketKey)) {
+                    uniqueDecisions.set(marketKey, { ...research, type: 'RESEARCH', action: 'RESEARCH' });
+                  }
+                });
               
-              uniqueTradesArray.forEach((trade: any, index: number) => {
+              // Create a decision for each unique trade/research (up to 8 most recent - more variety)
+              const uniqueDecisionsArray = Array.from(uniqueDecisions.values()).slice(0, 8);
+              
+              uniqueDecisionsArray.forEach((decision: any, index: number) => {
                 const agent = data.agents?.find((a: any) => a.id === agentId);
+                
+                // Determine action type (TRADE or RESEARCH)
+                const action = decision.action || decision.type || 'TRADE';
                 
                 // Truncate reasoning to first 2-3 bullets or 150 chars
                 let reasoningText = '';
-                if (Array.isArray(trade.reasoning)) {
+                if (Array.isArray(decision.reasoning)) {
                   // Take first 2-3 bullets, max 150 chars
-                  const bullets = trade.reasoning.slice(0, 3);
+                  const bullets = decision.reasoning.slice(0, 3);
                   reasoningText = bullets.join(' ').substring(0, 150);
                   if (reasoningText.length === 150) reasoningText += '...';
-                } else if (trade.reasoning) {
-                  reasoningText = trade.reasoning.substring(0, 150);
+                } else if (decision.reasoning) {
+                  reasoningText = decision.reasoning.substring(0, 150);
                   if (reasoningText.length === 150) reasoningText += '...';
                 } else {
-                  reasoningText = 'Analysis based on market data';
+                  reasoningText = action === 'RESEARCH' ? 'Web research and market analysis' : 'Analysis based on market data';
                 }
                 
-                const tradeTimestamp = trade.openedAt ? new Date(trade.openedAt) : (trade.timestamp ? new Date(trade.timestamp) : new Date());
+                const decisionTimestamp = decision.openedAt ? new Date(decision.openedAt) : (decision.timestamp ? new Date(decision.timestamp) : new Date());
+                
+                // For RESEARCH, decision can be YES, NO, or NEUTRAL
+                let decisionValue: "YES" | "NO" = decision.decision || decision.side || 'NEUTRAL';
+                if (decisionValue === 'NEUTRAL') {
+                  // For display, convert NEUTRAL to a readable format
+                  decisionValue = 'YES'; // Default display, but we'll show it's research
+                }
+                
                 newDecisions.push({
-                  id: trade.id, // Use trade.id as stable ID (not index-based)
+                  id: decision.id || `${agentId}-${decision.marketId}-${index}`, // Use decision.id or generate stable ID
                   agentName: agent?.name || agent?.displayName || agentId,
                   agentEmoji: agent?.emoji || agent?.avatar || '🤖',
-                  timestamp: tradeTimestamp,
-                  action: 'TRADE',
-                  market: trade.marketQuestion || trade.market || trade.marketId || 'Unknown Market',
-                  marketId: trade.marketId || trade.predictionId, // Store marketId for clicking
-                  decision: trade.decision || trade.side,
-                  confidence: typeof trade.confidence === 'number' ? trade.confidence : Math.round((trade.confidence || 0) * 100),
+                  timestamp: decisionTimestamp,
+                  action: action, // 'TRADE' or 'RESEARCH'
+                  market: decision.marketQuestion || decision.market || decision.marketId || 'Unknown Market',
+                  marketId: decision.marketId || decision.predictionId, // Store marketId for clicking
+                  decision: decisionValue,
+                  confidence: typeof decision.confidence === 'number' ? decision.confidence : Math.round((decision.confidence || 0) * 100),
                   reasoning: reasoningText,
-                  fullReasoning: Array.isArray(trade.reasoning) ? trade.reasoning : (trade.reasoning ? [trade.reasoning] : []), // Store full reasoning for expansion
-                  investmentUsd: trade.investmentUsd || 0, // Store investment amount
+                  fullReasoning: Array.isArray(decision.reasoning) ? decision.reasoning : (decision.reasoning ? [decision.reasoning] : []), // Store full reasoning for expansion
+                  investmentUsd: action === 'TRADE' ? (decision.investmentUsd || 0) : undefined, // Only trades have investment
                   decisionHistory: [], // Don't show nested history to avoid clutter
                 });
               });

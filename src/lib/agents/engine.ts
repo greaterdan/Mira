@@ -110,13 +110,48 @@ export async function generateTradeForMarket(
   let confidence: number;
   let reasoning: string[];
   
-  // Try AI API if configured
+  // Search web for market-specific information (concise search)
+  let webSearchResults: any[] = [];
+  try {
+    const { searchWebForMarket, buildMarketSearchQuery } = await import('./web-search');
+    const searchQuery = buildMarketSearchQuery(scored.question, scored.category);
+    console.log(`[Engine:${agent.id}] 🔍 Searching web for: "${searchQuery}"`);
+    webSearchResults = await searchWebForMarket(searchQuery);
+    if (webSearchResults.length > 0) {
+      console.log(`[Engine:${agent.id}] ✅ Found ${webSearchResults.length} web results`);
+    }
+  } catch (error) {
+    console.warn(`[Engine:${agent.id}] ⚠️ Web search failed (using news/articles only):`, error);
+    // Continue without web search - use news/articles instead
+  }
+  
+  // Try AI API if configured - include web search results
   if (isAIConfigured(agent.id)) {
     try {
-      const aiDecision = await getAITradeDecision(agent.id, scored, newsArticles);
+      // Combine news articles with web search results
+      const combinedContext = [...newsArticles];
+      if (webSearchResults.length > 0) {
+        const webArticles = webSearchResults.map((result: any) => ({
+          title: result.title,
+          description: result.snippet,
+          content: result.snippet,
+          publishedAt: new Date().toISOString(),
+          url: result.url,
+          sourceApi: 'web-search',
+        }));
+        combinedContext.push(...webArticles);
+      }
+      
+      const aiDecision = await getAITradeDecision(agent.id, scored, combinedContext);
       side = aiDecision.side;
       confidence = aiDecision.confidence;
+      
+      // Add web search note to reasoning (concise)
       reasoning = aiDecision.reasoning;
+      if (webSearchResults.length > 0) {
+        const webNote = `Web research: ${webSearchResults.length} sources analyzed`;
+        reasoning = [webNote, ...reasoning].slice(0, 3); // Max 3 bullets to save credits
+      }
       
       // Apply risk adjustment to AI confidence
       if (agent.risk === 'HIGH') {
@@ -208,9 +243,20 @@ export async function generateTradeForMarket(
   // Round to nearest $10 for cleaner display (was $5, but $10 gives more variety)
   const finalInvestment = Math.round(investmentUsd / 10) * 10;
   
+  // Determine if this is a trade or research decision
+  // Low score markets (< 8) become research, high score markets become trades
+  // But also add some randomness so agents research some good markets too
+  const marketHash = scored.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const isResearchDecision = isLowScore || (marketHash % 4) === 0; // ~25% of even good markets become research
+  
+  // For research decisions, don't create a trade - return null but we'll handle it in generator
+  if (isResearchDecision) {
+    // Return a special marker that this is research (we'll handle it in generator.ts)
+    return null; // Generator will create research decision separately
+  }
+  
   // Determine trade status - close some trades to show history
   // Close trades deterministically based on market ID hash (so same market = same status)
-  const marketHash = scored.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const shouldClose = (marketHash % 3) === 0; // Close ~33% of trades
   const status: 'OPEN' | 'CLOSED' = shouldClose ? 'CLOSED' : 'OPEN';
   

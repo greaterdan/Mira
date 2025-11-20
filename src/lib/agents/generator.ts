@@ -15,6 +15,7 @@ import { fetchLatestNews } from '../news/aggregator';
 import { filterCandidateMarkets, scoreMarketForAgent, computeNewsRelevance } from './scoring';
 import { generateTradeForMarket } from './engine';
 import { getCachedAgentTrades, setCachedAgentTrades } from './cache';
+import { generateResearchForMarket, type ResearchDecision } from './research';
 
 /**
  * Generate trades for a specific agent
@@ -202,7 +203,25 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
         trades.push(trade);
         console.log(`[Agent:${agentId}] ✅ Generated trade ${trades.length}: ${trade.side} @ ${(trade.confidence * 100).toFixed(0)}% confidence`);
       } else {
-        console.log(`[Agent:${agentId}] ⏭️ Skipped market (score too low or other reason)`);
+        // If no trade generated, create research decision instead
+        // This shows agents are analyzing markets even when not trading
+        const { generateResearchForMarket } = await import('./research');
+        const researchDecision = await generateResearchForMarket(
+          agent,
+          scored,
+          newsRelevance,
+          newsArticles,
+          i,
+          nowMs
+        );
+        
+        if (researchDecision) {
+          // Store research decision (we'll include it in summary API)
+          // For now, we'll handle research in the summary API separately
+          console.log(`[Agent:${agentId}] 🔍 Generated research: ${researchDecision.side} @ ${(researchDecision.confidence * 100).toFixed(0)}% confidence`);
+        } else {
+          console.log(`[Agent:${agentId}] ⏭️ Skipped market (score too low)`);
+        }
       }
     } catch (error) {
       console.error(`[Agent:${agentId}] ❌ Failed to generate trade for market ${scored.id}:`, error);
