@@ -182,9 +182,10 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
     console.warn(`[Agent:${agentId}] ⚠️ Top market score is low (${topScore.toFixed(1)}), but proceeding with top markets anyway`);
   }
   
-  // Generate trades (now async due to AI API calls)
+  // Generate trades AND research (now async due to AI API calls)
   const nowMs = Date.now();
   const trades: AgentTrade[] = [];
+  const researchDecisions: ResearchDecision[] = [];
   
   console.log(`[Agent:${agentId}] 🤖 Generating trades for ${selectedMarkets.length} markets...`);
   for (let i = 0; i < selectedMarkets.length; i++) {
@@ -221,8 +222,8 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
         );
         
         if (researchDecision) {
-          // Store research decision (we'll include it in summary API)
-          // For now, we'll handle research in the summary API separately
+          // Store research decision
+          researchDecisions.push(researchDecision);
           console.log(`[Agent:${agentId}] 🔍 Generated research: ${researchDecision.side} @ ${(researchDecision.confidence * 100).toFixed(0)}% confidence`);
         } else {
           console.log(`[Agent:${agentId}] ⏭️ Skipped market (score too low)`);
