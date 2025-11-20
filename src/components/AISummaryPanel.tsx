@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Brain, TrendingUp, TrendingDown, Activity, ChevronDown } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { TypewriterText } from "./TypewriterText";
 
 const getAgentLogo = (agentName: string): string => {
@@ -280,6 +280,9 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null); // null = all agents
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch agent summary from API
   useEffect(() => {
@@ -473,14 +476,82 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  // Filter decisions by selected agent
+  const filteredDecisions = selectedAgent
+    ? decisions.filter(d => {
+        // Match by agent name (case-insensitive)
+        const agentName = d.agentName.toLowerCase();
+        const selectedName = selectedAgent.toLowerCase();
+        return agentName.includes(selectedName) || selectedName.includes(agentName);
+      })
+    : decisions;
+
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="h-10 px-4 border-b border-border flex items-center justify-between bg-bg-elevated flex-shrink-0">
-        <span className="text-[13px] text-terminal-accent font-mono leading-none flex items-center">
-          &gt; SUMMARY
-        </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="text-[13px] text-terminal-accent font-mono leading-none flex items-center flex-shrink-0">
+            &gt; SUMMARY
+          </span>
+          
+          {/* Agent Filter Dropdown */}
+          <div className="relative flex-shrink-0 agent-dropdown-container">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-bg-elevated hover:bg-muted/50 transition-colors text-[11px] font-mono text-foreground"
+            >
+              <span className="text-[11px]">
+                {selectedAgent 
+                  ? agents.find(a => a.name.toLowerCase() === selectedAgent.toLowerCase())?.emoji || '🤖'
+                  : 'ALL'}
+              </span>
+              <span className="text-[10px] text-muted-foreground max-w-[80px] truncate">
+                {selectedAgent || 'All Agents'}
+              </span>
+              {dropdownOpen ? (
+                <ChevronUp className="w-3 h-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              )}
+            </button>
+            
+            {/* Dropdown Menu */}
+            {dropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 bg-bg-elevated border border-border rounded-lg shadow-lg z-50 min-w-[140px] max-h-[300px] overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setSelectedAgent(null);
+                    setDropdownOpen(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left text-[11px] font-mono hover:bg-muted/50 transition-colors flex items-center gap-2 ${
+                    selectedAgent === null ? 'bg-terminal-accent/10 text-terminal-accent' : 'text-foreground'
+                  }`}
+                >
+                  <span>ALL</span>
+                  <span className="text-[10px] text-muted-foreground">All Agents</span>
+                </button>
+                {agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    onClick={() => {
+                      setSelectedAgent(agent.name);
+                      setDropdownOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-[11px] font-mono hover:bg-muted/50 transition-colors flex items-center gap-2 ${
+                      selectedAgent === agent.name ? 'bg-terminal-accent/10 text-terminal-accent' : 'text-foreground'
+                    }`}
+                  >
+                    <span>{agent.emoji}</span>
+                    <span className="text-[10px]">{agent.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 flex-shrink-0">
           <motion.div
             className="w-2 h-2 rounded-full bg-trade-yes"
             animate={{
@@ -507,12 +578,19 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
               <div className="text-[11px] text-muted-foreground font-mono">Agents are analyzing markets...</div>
             </div>
           </div>
+        ) : filteredDecisions.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-[13px] text-muted-foreground font-mono mb-2">No research for selected agent</div>
+              <div className="text-[11px] text-muted-foreground font-mono">Try selecting a different agent or "All Agents"</div>
+            </div>
+          </div>
         ) : (
         <div className="p-3 space-y-3">
           {/* CRITICAL: Use AnimatePresence with mode="sync" to prevent disappearing */}
           {/* initial={false} prevents initial animations on mount */}
           <AnimatePresence mode="sync" initial={false}>
-            {decisions.map((decision, index) => {
+            {filteredDecisions.map((decision, index) => {
             const isExpanded = expandedId === decision.id;
             const hasHistory = decision.decisionHistory && decision.decisionHistory.length > 0;
             
