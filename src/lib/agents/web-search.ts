@@ -37,6 +37,12 @@ export async function searchWebForMarket(query: string): Promise<WebSearchResult
       return await searchWithGoogleCustomSearch(query, googleSearchApiKey, googleSearchEngineId);
     }
     
+    // Fallback: DuckDuckGo (no key required)
+    const duckResults = await searchWithDuckDuckGo(query);
+    if (duckResults.length > 0) {
+      return duckResults;
+    }
+    
     // No search API configured - return empty (agents will use news/articles instead)
     console.log('[WebSearch] No search API configured - using news/articles only');
     return [];
@@ -100,16 +106,68 @@ async function searchWithGoogleCustomSearch(
   }));
 }
 
+
+/**
+ * Search using DuckDuckGo Instant Answer API (no key required)
+ */
+async function searchWithDuckDuckGo(query: string): Promise<WebSearchResult[]> {
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) {
+    throw new Error(`DuckDuckGo error: ${response.status}`);
+  }
+  const data = await response.json() as any;
+  const results: WebSearchResult[] = [];
+
+  const addResult = (item: any) => {
+    if (!item) return;
+    const title = item.Text || item.Result || item.FirstURL || '';
+    const snippet = (item.Text || '').substring(0, 150);
+    const urlResult = item.FirstURL || item.URL || '';
+    if (title && urlResult) {
+      results.push({
+        title,
+        snippet,
+        url: urlResult,
+        source: extractSourceFromUrl(urlResult),
+      });
+    }
+  };
+
+  if (Array.isArray(data.RelatedTopics)) {
+    data.RelatedTopics.forEach((topic: any) => {
+      if (Array.isArray(topic.Topics)) {
+        topic.Topics.forEach(addResult);
+      } else {
+        addResult(topic);
+      }
+    });
+  }
+
+  if (results.length === 0 && data.AbstractURL) {
+    results.push({
+      title: data.Heading || query,
+      snippet: (data.Abstract || '').substring(0, 150),
+      url: data.AbstractURL,
+      source: extractSourceFromUrl(data.AbstractURL),
+    });
+  }
+
+  return results.slice(0, 5);
+}
+
 /**
  * Extract source name from URL
  */
 function extractSourceFromUrl(url: string): string {
   try {
     const domain = new URL(url).hostname;
-    // Remove www. and common TLDs, extract main domain
     const parts = domain.replace(/^www\./, '').split('.');
     if (parts.length >= 2) {
-      return parts[parts.length - 2].charAt(0).toUpperCase() + parts[parts.length - 2].slice(1);
+      const base = parts[parts.length - 2];
+      return base.charAt(0).toUpperCase() + base.slice(1);
     }
     return domain;
   } catch {
@@ -119,28 +177,21 @@ function extractSourceFromUrl(url: string): string {
 
 /**
  * Build search query from market question
- * 
+ *
  * Extracts key terms from market question for focused search
  */
 export function buildMarketSearchQuery(marketQuestion: string, category?: string): string {
-  // Extract key terms (remove common words)
   const stopWords = ['will', 'the', 'be', 'by', 'in', 'on', 'at', 'to', 'for', 'of', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were'];
   const words = marketQuestion
     .toLowerCase()
     .split(/[\s\-_.,;:!?()]+/)
     .filter(w => w.length >= 3 && !stopWords.includes(w))
-    .slice(0, 5); // Take first 5 meaningful words
-  
+    .slice(0, 5);
+
   let query = words.join(' ');
-  
-  // Add category if provided for more focused search
   if (category && category !== 'Other') {
     query = `${query} ${category}`;
   }
-  
-  // Add "news" or "prediction" to get relevant results
   query = `${query} news prediction`;
-  
   return query.trim();
 }
-

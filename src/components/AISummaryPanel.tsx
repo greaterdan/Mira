@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { Brain, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Globe } from "lucide-react";
 import { TypewriterText } from "./TypewriterText";
@@ -308,8 +308,6 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string | null>(null); // null = all agents
   const [agents, setAgents] = useState<Array<{ id: string; name: string; emoji: string }>>(DEFAULT_AGENT_OPTIONS);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const newDecisionIdsRef = useRef<Set<string>>(new Set());
-  const newDecisionOrderRef = useRef<Map<string, number>>(new Map());
   const hasLoadedRef = useRef(false);
 
 
@@ -454,51 +452,12 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
               return prev; // Keep existing decisions visible
             }
             
-            const prevMap = new Map(prev.map(d => [d.id, d]));
-            const merged: AIDecision[] = [];
-            const seenIds = new Set<string>();
-            const freshIds = new Set<string>();
-            const orderMap = new Map<string, number>();
-            
-            // Add new decisions first (most recent at top) - these will animate in
-            for (const decision of newDecisions) {
-              const prevDecision = prevMap.get(decision.id);
-              if (prevDecision) {
-                // Existing decision - update it but keep it in the list
-                merged.push(decision);
-                if (decision.timestamp.getTime() !== prevDecision.timestamp.getTime()) {
-                  freshIds.add(decision.id);
-                }
-              } else {
-                // Brand new decision - add at top (will animate from top)
-                merged.push(decision);
-                freshIds.add(decision.id);
-              }
-              seenIds.add(decision.id);
-            }
-            
-            // CRITICAL: Add ALL existing decisions that aren't in new list
-            // This ensures nothing disappears - old decisions stay visible
-            const oldDecisions = prev.filter(d => !seenIds.has(d.id));
-            merged.push(...oldDecisions);
-            
-            // Sort by timestamp again (newest first) - newest at top
+            const merged = [...newDecisions];
+            const seenIds = new Set(newDecisions.map(d => d.id));
+            const remaining = prev.filter(d => !seenIds.has(d.id));
+            merged.push(...remaining);
             merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            
-            // Limit to 100 items to prevent memory issues (but keep them all visible)
-            const limited = merged.slice(0, 100);
-            if (freshIds.size > 0) {
-              newDecisions.forEach((decision, idx) => {
-                if (freshIds.has(decision.id)) {
-                  orderMap.set(decision.id, idx);
-                }
-              });
-            } else {
-              orderMap.clear();
-            }
-            newDecisionOrderRef.current = orderMap;
-            newDecisionIdsRef.current = freshIds;
-            return limited;
+            return merged.slice(0, 100);
           });
           
           if (!hasLoadedRef.current) {
@@ -535,16 +494,6 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
     return () => clearInterval(interval);
   }, []);
   
-  useEffect(() => {
-    if (newDecisionIdsRef.current.size > 0 || newDecisionOrderRef.current.size > 0) {
-      const frame = requestAnimationFrame(() => {
-        newDecisionIdsRef.current = new Set();
-        newDecisionOrderRef.current = new Map();
-      });
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [decisions]);
-
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
@@ -578,9 +527,15 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-bg-elevated hover:bg-muted/50 transition-colors text-[11px] font-mono text-foreground"
             >
-              <span className="text-[11px]">
-                {selectedAgentMeta ? selectedAgentMeta.emoji : 'ALL'}
-              </span>
+              {selectedAgentMeta ? (
+                <img
+                  src={getAgentLogo(selectedAgentMeta.name)}
+                  alt={selectedAgentMeta.name}
+                  className="w-4 h-4 rounded-full object-contain"
+                />
+              ) : (
+                <span className="text-[11px]">ALL</span>
+              )}
               <span className="text-[10px] text-muted-foreground max-w-[80px] truncate">
                 {selectedAgentMeta?.name || 'All Agents'}
               </span>
@@ -603,7 +558,7 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
                     selectedAgentFilter === null ? 'bg-terminal-accent/10 text-terminal-accent' : 'text-foreground'
                   }`}
                 >
-                  <span>ALL</span>
+                  <span className="w-4 h-4 rounded-full bg-terminal-accent/20 border border-terminal-accent/30 flex items-center justify-center text-[9px] font-bold text-terminal-accent">ALL</span>
                   <span className="text-[10px] text-muted-foreground">All Agents</span>
                 </button>
                 {agents.map((agent) => (
@@ -617,7 +572,11 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
                       selectedAgentFilter === agent.id ? 'bg-terminal-accent/10 text-terminal-accent' : 'text-foreground'
                     }`}
                   >
-                    <span>{agent.emoji}</span>
+                    <img
+                      src={getAgentLogo(agent.name)}
+                      alt={agent.name}
+                      className="w-4 h-4 rounded-full object-contain"
+                    />
                     <span className="text-[10px]">{agent.name}</span>
                   </button>
                 ))}
@@ -673,24 +632,20 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
             const isNewDecision = newDecisionIdsRef.current.has(decision.id);
             const orderPosition = newDecisionOrderRef.current.get(decision.id) ?? 0;
             const animationDelay = isNewDecision ? Math.min(orderPosition * 0.35, 1.4) : 0;
-            const layoutTransition = isNewDecision
-              ? { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
-              : { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
             
             return (
               <motion.div
-                key={decision.id} // Stable key - prevents re-mounting
-                initial={isNewDecision ? { opacity: 0, y: -40, scale: 0.95 } : false} // New items animate from top
-                animate={{ opacity: 1, y: 0, scale: 1 }} // Always visible when in list
-                exit={{ opacity: 0, height: 0 }} // Only exit if actually removed (shouldn't happen)
+                key={decision.id}
+                variants={cardVariants}
+                initial={isNewDecision ? "hidden" : "visible"}
+                animate="visible"
+                exit="hidden"
                 transition={{
-                  duration: isNewDecision ? 0.55 : 0.3,
+                  duration: isNewDecision ? 0.6 : 0.3,
                   delay: animationDelay,
                   ease: [0.16, 1, 0.3, 1],
-                }} // Smooth animation
-                layout
-                layoutTransition={layoutTransition}
-                className="bg-bg-elevated border border-border rounded-xl overflow-hidden hover:border-terminal-accent/50 transition-colors"
+                }}
+                className="bg-bg-elevated border border-border rounded-xl overflow-hidden hover:border-terminal-accent/50 transition-colors will-change-transform"
               >
                 {/* Clickable Header - Always expandable to show decision details */}
                 <div

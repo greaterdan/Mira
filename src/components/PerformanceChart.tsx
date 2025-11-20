@@ -411,7 +411,6 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
           };
           
           const pnlDidChange = new Map<string, boolean>();
-          let anyChangeDetected = false;
           Object.entries(BACKEND_TO_CHART_ID).forEach(([backendId, chartKey]) => {
             const capital = computeAgentCapital(backendId);
             if (typeof capital === 'number') {
@@ -420,14 +419,11 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
               const currentPnl = capital - STARTING_CAPITAL;
               const changed = prevPnl === undefined || Math.abs(prevPnl - currentPnl) > 0.05;
               pnlDidChange.set(chartKey, changed);
-              if (changed) {
-                anyChangeDetected = true;
-              }
               lastAgentPnlRef.current.set(chartKey, currentPnl);
             }
           });
           
-          if (!isMounted || !anyChangeDetected) {
+          if (!isMounted) {
             return;
           }
           // Replace chart data with real data (don't append to mock data)
