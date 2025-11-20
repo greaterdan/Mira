@@ -425,16 +425,26 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
             return STARTING_CAPITAL + realizedPnl + unrealizedPnl;
           };
           
-          const pnlDidChange = new Map<string, boolean>();
+          // Calculate capital for each agent based ONLY on actual profit/loss from trades
+          let hasChanges = false;
           Object.entries(BACKEND_TO_CHART_ID).forEach(([backendId, chartKey]) => {
             const capital = computeAgentCapital(backendId);
-            if (typeof capital === 'number') {
-              newDataPoint[chartKey] = capital;
+            if (typeof capital === 'number' && !isNaN(capital) && isFinite(capital)) {
+              // Ensure capital is never below 0
+              newDataPoint[chartKey] = Math.max(0, capital);
               const prevPnl = lastAgentPnlRef.current.get(chartKey);
               const currentPnl = capital - STARTING_CAPITAL;
-              const changed = prevPnl === undefined || Math.abs(prevPnl - currentPnl) > 0.05;
-              pnlDidChange.set(chartKey, changed);
+              const changed = prevPnl === undefined || Math.abs(prevPnl - currentPnl) > 0.01; // Only update if change > 1 cent
+              if (changed) {
+                hasChanges = true;
+              }
               lastAgentPnlRef.current.set(chartKey, currentPnl);
+            } else {
+              // If calculation failed, use last known value or starting capital
+              const lastPnl = lastAgentPnlRef.current.get(chartKey);
+              newDataPoint[chartKey] = lastPnl !== undefined 
+                ? STARTING_CAPITAL + lastPnl 
+                : STARTING_CAPITAL;
             }
           });
           
@@ -447,20 +457,6 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
             if (!isMounted) {
               return prev;
             }
-            
-            // Check if any agent's PnL actually changed
-            let hasChanges = false;
-            Object.entries(BACKEND_TO_CHART_ID).forEach(([backendId, chartKey]) => {
-              const capital = computeAgentCapital(backendId);
-              if (typeof capital === 'number') {
-                const prevPnl = lastAgentPnlRef.current.get(chartKey);
-                const currentPnl = capital - STARTING_CAPITAL;
-                const changed = prevPnl === undefined || Math.abs(prevPnl - currentPnl) > 0.01; // Only update if change > 1 cent
-                if (changed) {
-                  hasChanges = true;
-                }
-              }
-            });
             
             // If no changes, return previous data (don't add duplicate point)
             if (!hasChanges && prev.length > 0) {
