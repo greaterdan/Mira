@@ -23,33 +23,48 @@ export interface WebSearchResult {
  * @returns Array of search results (max 5 to save credits)
  */
 export async function searchWebForMarket(query: string): Promise<WebSearchResult[]> {
-  try {
-    // Try Google Custom Search API first (cheaper, higher quota)
-    const googleSearchApiKey = process.env.GOOGLE_SEARCH_API_KEY;
-    const googleSearchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
-    if (googleSearchApiKey && googleSearchEngineId) {
-      return await searchWithGoogleCustomSearch(query, googleSearchApiKey, googleSearchEngineId);
-    }
+  let lastError: unknown = null;
 
-    // Try SerpAPI second (limited monthly quota)
-    const serpApiKey = process.env.SERP_API_KEY;
-    if (serpApiKey) {
-      return await searchWithSerpAPI(query, serpApiKey);
+  // Try Google Custom Search API first (cheaper, higher quota)
+  const googleSearchApiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const googleSearchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+  if (googleSearchApiKey && googleSearchEngineId) {
+    try {
+      return await searchWithGoogleCustomSearch(query, googleSearchApiKey, googleSearchEngineId);
+    } catch (error) {
+      lastError = error;
+      console.warn('[WebSearch] Google Custom Search failed, falling back:', (error as Error)?.message || error);
     }
-    
-    // Fallback: DuckDuckGo (no key required)
+  }
+
+  // Try SerpAPI second (limited monthly quota)
+  const serpApiKey = process.env.SERP_API_KEY;
+  if (serpApiKey) {
+    try {
+      return await searchWithSerpAPI(query, serpApiKey);
+    } catch (error) {
+      lastError = error;
+      console.warn('[WebSearch] SerpAPI failed, falling back:', (error as Error)?.message || error);
+    }
+  }
+  
+  // Fallback: DuckDuckGo (no key required)
+  try {
     const duckResults = await searchWithDuckDuckGo(query);
     if (duckResults.length > 0) {
       return duckResults;
     }
-    
-    // No search API configured - return empty (agents will use news/articles instead)
-    console.log('[WebSearch] No search API configured - using news/articles only');
-    return [];
   } catch (error) {
-    console.error('[WebSearch] Error searching web:', error);
-    return []; // Return empty on error - don't block agent decisions
+    lastError = error;
+    console.warn('[WebSearch] DuckDuckGo search failed:', (error as Error)?.message || error);
   }
+  
+  if (lastError) {
+    console.error('[WebSearch] All search providers failed:', lastError);
+  } else {
+    console.log('[WebSearch] No search API configured - using news/articles only');
+  }
+  return [];
 }
 
 /**

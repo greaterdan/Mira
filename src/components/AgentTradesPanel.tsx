@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, MouseEvent } from "react";
 import { X, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -104,9 +104,8 @@ export const AgentTradesPanel = ({ agentId, agentName, agentEmoji, trades, onClo
     );
 
     return (
-      <motion.div
+      <div
         key={trade.id}
-        layout
         onClick={() => setExpandedTradeId(prev => prev === trade.id ? null : trade.id)}
         className={`border rounded-2xl px-3 py-2.5 transition-all cursor-pointer ${
           isExpanded
@@ -154,61 +153,72 @@ export const AgentTradesPanel = ({ agentId, agentName, agentEmoji, trades, onClo
           )}
         </div>
 
-        {isExpanded && (
-          <div className="mt-3 space-y-2">
-            {trade.summaryDecision && (
-              <div className="text-[12px] text-foreground leading-relaxed font-mono" style={{ fontWeight: 500 }}>
-                {trade.summaryDecision}
-              </div>
-            )}
-            {trade.reasoningBullets && trade.reasoningBullets.length > 0 ? (
-              <ul className="text-[12px] text-text-secondary leading-relaxed space-y-1 pl-4 list-disc">
-                {trade.reasoningBullets.map((reason, idx) => (
-                  <li key={`${trade.id}-reason-${idx}`}>{reason}</li>
-                ))}
-              </ul>
-            ) : trade.reasoning ? (
-              <div className="text-[12px] text-text-secondary leading-relaxed">
-                {trade.reasoning}
-              </div>
-            ) : null}
-            {trade.webResearchSummary && trade.webResearchSummary.length > 0 && (
-              <div className="text-[11px] text-muted-foreground font-mono border border-terminal-accent/30 rounded-lg p-2 bg-terminal-accent/5">
-                <div className="uppercase tracking-[0.1em] mb-1 text-terminal-accent">Web Research</div>
-                {trade.webResearchSummary.slice(0, 2).map((source, idx) => (
-                  <div key={`${trade.id}-web-${idx}`} className="text-[11px] text-foreground mb-1">
-                    <span className="font-semibold text-terminal-accent">{source.source}:</span> {source.snippet || source.title}
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              key={`${trade.id}-details`}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 space-y-2">
+                {trade.summaryDecision && (
+                  <div className="text-[12px] text-foreground leading-relaxed font-mono" style={{ fontWeight: 500 }}>
+                    {trade.summaryDecision}
                   </div>
-                ))}
+                )}
+                {trade.reasoningBullets && trade.reasoningBullets.length > 0 ? (
+                  <ul className="text-[12px] text-text-secondary leading-relaxed space-y-1 pl-4 list-disc">
+                    {trade.reasoningBullets.map((reason, idx) => (
+                      <li key={`${trade.id}-reason-${idx}`}>{reason}</li>
+                    ))}
+                  </ul>
+                ) : trade.reasoning ? (
+                  <div className="text-[12px] text-text-secondary leading-relaxed">
+                    {trade.reasoning}
+                  </div>
+                ) : null}
+                {trade.webResearchSummary && trade.webResearchSummary.length > 0 && (
+                  <div className="text-[11px] text-muted-foreground font-mono border border-terminal-accent/30 rounded-lg p-2 bg-terminal-accent/5">
+                    <div className="uppercase tracking-[0.1em] mb-1 text-terminal-accent">Web Research</div>
+                    {trade.webResearchSummary.slice(0, 2).map((source, idx) => (
+                      <div key={`${trade.id}-web-${idx}`} className="text-[11px] text-foreground mb-1">
+                        <span className="font-semibold text-terminal-accent">{source.source}:</span> {source.snippet || source.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={(event) => handleTradeSelect(trade, event)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded-lg border border-terminal-accent/40 text-terminal-accent hover:bg-terminal-accent/10 transition-colors"
+                  >
+                    View Decision →
+                  </button>
+                  {(trade.marketSlug || trade.conditionId) && (
+                    <a
+                      href={
+                        trade.marketSlug
+                          ? `https://polymarket.com/event/${trade.marketSlug}`
+                          : `https://polymarket.com/condition/${trade.conditionId}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-terminal-accent/10 text-terminal-accent rounded hover:bg-terminal-accent/20 transition-colors text-[11px] font-mono"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      View Market
+                    </a>
+                  )}
+                </div>
               </div>
-            )}
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                onClick={(event) => handleTradeSelect(trade, event)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded-lg border border-terminal-accent/40 text-terminal-accent hover:bg-terminal-accent/10 transition-colors"
-              >
-                View Decision →
-              </button>
-              {(trade.marketSlug || trade.conditionId) && (
-                <a
-                  href={
-                    trade.marketSlug
-                      ? `https://polymarket.com/event/${trade.marketSlug}`
-                      : `https://polymarket.com/condition/${trade.conditionId}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-terminal-accent/10 text-terminal-accent rounded hover:bg-terminal-accent/20 transition-colors text-[11px] font-mono"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  View Market
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-      </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     );
   };
 

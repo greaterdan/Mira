@@ -7,12 +7,11 @@ const SUMMARY_CACHE_KEY = 'agent-summary-cache-v2';
 const MAX_DECISIONS = 50;
 
 const cardVariants = {
-  hidden: { opacity: 0, y: -12, scale: 0.97 },
+  hidden: { opacity: 0, y: -12 },
   visible: {
     opacity: 1,
     y: 0,
-    scale: 1,
-    transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.25, ease: "easeOut" },
   },
 };
 
