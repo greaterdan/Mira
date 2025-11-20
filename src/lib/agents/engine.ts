@@ -131,12 +131,14 @@ export async function generateTradeForMarket(
       // Combine news articles with web search results
       const combinedContext = [...newsArticles];
       if (webSearchResults.length > 0) {
-        const webArticles = webSearchResults.map((result: any) => ({
-          title: result.title,
-          description: result.snippet,
-          content: result.snippet,
+        const webArticles: NewsArticle[] = webSearchResults.map((result: any, idx: number) => ({
+          id: `web-search-${scored.id}-${idx}`,
+          title: result.title || '',
+          description: result.snippet || '',
+          content: result.snippet || '',
+          source: result.source || 'Web',
           publishedAt: new Date().toISOString(),
-          url: result.url,
+          url: result.url || '',
           sourceApi: 'web-search',
         }));
         combinedContext.push(...webArticles);

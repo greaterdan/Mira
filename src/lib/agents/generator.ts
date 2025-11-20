@@ -236,12 +236,22 @@ export async function generateAgentTrades(agentId: AgentId): Promise<AgentTrade[
   }
   
   const duration = Date.now() - startTime;
-  console.log(`[Agent:${agentId}] ✅ Trade generation complete: ${trades.length} trades generated in ${duration}ms`);
+  console.log(`[Agent:${agentId}] ✅ Trade generation complete: ${trades.length} trades and ${researchDecisions.length} research decisions generated in ${duration}ms`);
   
   // Cache results
   setCachedAgentTrades(agentId, trades, currentMarketIds);
   
+  // Cache research decisions separately
+  researchCache.set(agentId, researchDecisions);
+  
   return trades;
+}
+
+/**
+ * Get research decisions for an agent
+ */
+export function getAgentResearch(agentId: AgentId): any[] {
+  return researchCache.get(agentId) || [];
 }
 
 

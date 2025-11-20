@@ -18,7 +18,7 @@ try {
   // tsx not available - will try direct import
 }
 
-let generateAgentTrades, getAgentProfile, isValidAgentId, ALL_AGENT_IDS, buildAgentSummary, computeSummaryStats, calculateAllAgentStats, getCachedTradesQuick;
+let generateAgentTrades, getAgentProfile, isValidAgentId, ALL_AGENT_IDS, buildAgentSummary, computeSummaryStats, calculateAllAgentStats, getCachedTradesQuick, getAgentResearch;
 
 try {
   // Import TypeScript modules (tsx will handle .ts extension)

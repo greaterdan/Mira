@@ -228,7 +228,12 @@ export async function getAgentsSummary(req, res) {
     );
     
     const allTrades = results.map(r => r.status === 'fulfilled' ? r.value : []);
-    // Map trades to frontend format for summary
+    
+    // Get research decisions for each agent (generated alongside trades)
+    const bridge = await import('./agents-bridge.mjs');
+    const getAgentResearch = bridge.getAgentResearch || (() => []); // Fallback if not available
+    
+    // Map trades AND research to frontend format for summary
     const tradesByAgent = agentIds.reduce((acc, agentId, index) => {
       const rawTrades = allTrades[index] || [];
       // Map to frontend format (same as getAgentTrades)
@@ -246,6 +251,7 @@ export async function getAgentsSummary(req, res) {
         marketQuestion: trade.marketQuestion,
         marketId: trade.marketId,
         openedAt: trade.openedAt,
+        action: 'TRADE', // Explicitly mark as trade
       }));
       acc[agentId] = mappedTrades;
       const result = results[index];
@@ -258,8 +264,34 @@ export async function getAgentsSummary(req, res) {
       return acc;
     }, {});
     
+    // Get research decisions and map them
+    const researchByAgent = agentIds.reduce((acc, agentId) => {
+      try {
+        const research = getAgentResearch(agentId);
+        const mappedResearch = research.map((r: any) => ({
+          id: r.id,
+          timestamp: new Date(r.timestamp),
+          market: r.marketQuestion || r.marketId,
+          decision: r.side === 'NEUTRAL' ? 'YES' : r.side, // Convert NEUTRAL to YES for display
+          confidence: Math.round(r.confidence * 100),
+          reasoning: Array.isArray(r.reasoning) ? r.reasoning.join(' ') : (r.reasoning || ''),
+          predictionId: r.marketId,
+          marketQuestion: r.marketQuestion,
+          marketId: r.marketId,
+          openedAt: r.timestamp,
+          action: 'RESEARCH', // Mark as research
+        }));
+        acc[agentId] = mappedResearch;
+      } catch (error) {
+        console.warn(`[API] Failed to get research for ${agentId}:`, error);
+        acc[agentId] = [];
+      }
+      return acc;
+    }, {});
+    
     const totalTrades = Object.values(tradesByAgent).reduce((sum, trades) => sum + (trades?.length || 0), 0);
-    console.log(`[API:${req.id}] 📊 Total trades across all agents: ${totalTrades}`);
+    const totalResearch = Object.values(researchByAgent).reduce((sum, research) => sum + (research?.length || 0), 0);
+    console.log(`[API:${req.id}] 📊 Total trades: ${totalTrades}, Total research: ${totalResearch}`);
     
     const summaryStats = computeSummaryStats(tradesByAgent);
     const agentSummaries = agentIds.map(agentId => {
@@ -315,6 +347,7 @@ export async function getAgentsSummary(req, res) {
     res.json({
       agents,
       tradesByAgent,
+      researchByAgent, // Include research decisions
       summary: {
         ...summaryStats,
         agentSummaries,
