@@ -5,17 +5,17 @@
  * Orchestrates market fetching, news aggregation, scoring, and trade generation.
  */
 
-import type { AgentId, AgentTrade, Market, NewsArticle } from './domain';
-import { getAgentProfile } from './domain';
+import type { AgentId, AgentTrade, Market, NewsArticle } from './domain.js';
+import { getAgentProfile } from './domain.js';
 // Use the same market fetching as bubble maps
 // The trading engine will use markets from the server's /api/predictions endpoint
 // This ensures we use the SAME API keys and data source
-import { fetchAllMarkets } from '../markets/polymarket';
-import { fetchLatestNews } from '../news/aggregator';
-import { filterCandidateMarkets, scoreMarketForAgent, computeNewsRelevance } from './scoring';
-import { generateTradeForMarket } from './engine';
-import { getCachedAgentTrades, setCachedAgentTrades } from './cache';
-import { generateResearchForMarket, type ResearchDecision } from './research';
+import { fetchAllMarkets } from '../markets/polymarket.js';
+import { fetchLatestNews } from '../news/aggregator.js';
+import { filterCandidateMarkets, scoreMarketForAgent, computeNewsRelevance } from './scoring.js';
+import { generateTradeForMarket } from './engine.js';
+import { getCachedAgentTrades, setCachedAgentTrades } from './cache.js';
+import { generateResearchForMarket, type ResearchDecision } from './research.js';
 
 /**
  * Research decisions cache (separate from trades)
