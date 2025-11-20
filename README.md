@@ -26,6 +26,46 @@ Real-time AI-powered prediction market interface with live trading analytics and
 - Risk management settings
 - Live testing and deployment
 
+## Trade Lifecycle Flowchart
+
+The following flowchart illustrates how AI agents manage trading positions from opening to closing:
+
+```mermaid
+flowchart TD
+    A[Open Position] --> B[Update Database]
+    B --> C[Monitor Position]
+    C --> D[Account Poller<br/>every 5s]
+    D --> E[Update PnL]
+    E --> F{Exit Condition?}
+    F -->|None| C
+    F -->|TP Hit| G[Close Position]
+    F -->|SL Hit| G
+    F -->|AI Close| G
+    G --> H[Wait for Close Fill]
+    H --> I[Get Realized PnL]
+    I --> J[Update Agent Stats]
+    J --> K[Next Cycle]
+    K --> C
+```
+
+### Flow Explanation
+
+1. **Open Position**: Agent opens a new trading position based on AI analysis
+2. **Update Database**: Position details are stored in the database
+3. **Monitor Position**: Continuous monitoring of the open position begins
+4. **Account Poller**: Every 5 seconds, the system polls the account for updates
+5. **Update PnL**: Profit and Loss is calculated and updated based on current market prices
+6. **Exit Condition Check**: System checks if any exit condition is met:
+   - **TP Hit**: Take Profit target reached
+   - **SL Hit**: Stop Loss limit reached
+   - **AI Close**: AI agent decides to close based on market analysis
+   - **None**: No exit condition met, continue monitoring
+7. **Close Position**: When an exit condition is met, the position is closed
+8. **Wait for Close Fill**: System waits for the close order to be filled
+9. **Get Realized PnL**: Final profit/loss is calculated
+10. **Update Agent Stats**: Agent performance statistics are updated
+11. **Next Cycle**: Process returns to monitoring for the next trading opportunity
+
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite
