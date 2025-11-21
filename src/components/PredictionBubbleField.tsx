@@ -484,27 +484,27 @@ const PredictionBubbleFieldComponent: React.FC<Props> = ({
       if (!layoutCalculationRef.current) {
         layoutCalculationRef.current = setTimeout(() => {
           requestAnimationFrame(() => {
-            try {
-              const bubbles = layoutRadialBubbleCloud(
-                markets.map((m, idx) => ({ id: m.id ?? String(idx), data: m })),
-                size.width,
-                size.height,
-                maxVisible
-              );
-              
-              // Store stable positions with initial container size (not current size)
-              // This ensures bubbles don't move when panels resize
-              const storedWidth = initialContainerSizeRef.current?.width || size.width;
-              const storedHeight = initialContainerSizeRef.current?.height || size.height;
-              bubbles.forEach(bubble => {
-                stablePositionsRef.current[bubble.id] = {
-                  x: bubble.x,
-                  y: bubble.y,
-                  radius: bubble.radius,
-                  width: storedWidth,
-                  height: storedHeight,
-                };
-              });
+        try {
+          const bubbles = layoutRadialBubbleCloud(
+            markets.map((m, idx) => ({ id: m.id ?? String(idx), data: m })),
+            size.width,
+            size.height,
+            maxVisible
+          );
+          
+      // Store stable positions with initial container size (not current size)
+      // This ensures bubbles don't move when panels resize
+      const storedWidth = initialContainerSizeRef.current?.width || size.width;
+      const storedHeight = initialContainerSizeRef.current?.height || size.height;
+      bubbles.forEach(bubble => {
+        stablePositionsRef.current[bubble.id] = {
+          x: bubble.x,
+          y: bubble.y,
+          radius: bubble.radius,
+          width: storedWidth,
+          height: storedHeight,
+        };
+      });
               
               // Cache positions for landing page (include market IDs in cache key)
               if (frosted) {
@@ -518,31 +518,31 @@ const PredictionBubbleFieldComponent: React.FC<Props> = ({
                   // Ignore storage errors
                 }
               }
-              
-              // Clean up
-              Object.keys(stablePositionsRef.current).forEach(id => {
-                if (!currentMarketIds.has(id)) {
-                  delete stablePositionsRef.current[id];
-                }
-              });
-              
-              previousMarketIdsRef.current = currentMarketIds;
-              
-              const validIds = new Set(bubbles.map(b => b.id));
-              Object.keys(persistentPositionsRef.current).forEach(id => {
-                if (!validIds.has(id)) {
-                  delete persistentPositionsRef.current[id];
-                }
-              });
-              
-              setDeferredBubbles(bubbles);
-            } catch (error) {
-              setDeferredBubbles([]);
-            } finally {
-              layoutCalculationRef.current = null;
+          
+          // Clean up
+          Object.keys(stablePositionsRef.current).forEach(id => {
+            if (!currentMarketIds.has(id)) {
+              delete stablePositionsRef.current[id];
             }
           });
-        }, 0);
+          
+          previousMarketIdsRef.current = currentMarketIds;
+          
+          const validIds = new Set(bubbles.map(b => b.id));
+          Object.keys(persistentPositionsRef.current).forEach(id => {
+            if (!validIds.has(id)) {
+              delete persistentPositionsRef.current[id];
+            }
+          });
+          
+          setDeferredBubbles(bubbles);
+        } catch (error) {
+          setDeferredBubbles([]);
+            } finally {
+              layoutCalculationRef.current = null;
+        }
+          });
+      }, 0);
       }
       
       // Return empty array - will update when async calculation completes

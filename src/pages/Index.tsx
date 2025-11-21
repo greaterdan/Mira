@@ -646,7 +646,19 @@ const Index = () => {
       return;
     }
     
-    // Always keep trades panel open for tapped agent
+    // Toggle behavior: If clicking the same agent that's already selected and trades are showing, close them
+    if (selectedAgent === agentId && showAgentTrades) {
+      setShowAgentTrades(false);
+      setSelectedAgent(null);
+      // Close summary panel if no other views are active
+      if (!showWaitlist && !showWatchlist && !showNewsFeed) {
+        setIsSummaryOpen(false);
+        setRightPanelSize(0);
+      }
+      return;
+    }
+    
+    // Opening trades for this agent (either different agent or trades not showing)
     setSelectedAgent(agentId);
     setShowAgentTrades(true);
     setShowWaitlist(false);

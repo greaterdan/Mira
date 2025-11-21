@@ -839,11 +839,11 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
       // Fallback to in-memory cache
       const cacheNow = Date.now();
       if (predictionsCache.data && 
-          predictionsCache.category === category &&
-          predictionsCache.timestamp && 
-          (cacheNow - predictionsCache.timestamp) < predictionsCache.CACHE_DURATION) {
+        predictionsCache.category === category &&
+        predictionsCache.timestamp && 
+        (cacheNow - predictionsCache.timestamp) < predictionsCache.CACHE_DURATION) {
         console.log(`[API:${req.id}] 💾 Cache hit from memory (fallback)`);
-        return res.json(predictionsCache.data);
+      return res.json(predictionsCache.data);
       }
       console.log(`[API:${req.id}] ❌ Cache miss - fetching from Polymarket API`);
     }
@@ -1008,12 +1008,12 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
       await redisCache.set(cacheKey, responseData, 5 * 60); // 5 minutes TTL
       
       // Also update in-memory cache as fallback
-      predictionsCache = {
-        data: responseData,
-        timestamp: Date.now(),
-        category: category,
-        CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
-      };
+    predictionsCache = {
+      data: responseData,
+      timestamp: Date.now(),
+      category: category,
+      CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+    };
       console.log(`[API:${req.id}] ✅ Cached ${responseData.count} predictions (Redis + memory)`);
     }
     
@@ -1807,7 +1807,7 @@ app.get('/api/news', async (req, res) => {
       console.log(`[API:${req.id}] 💾 Cache hit from memory (fallback)`);
       // Filter by source if needed
       if (source === 'all') {
-        return res.json(newsCache.data);
+      return res.json(newsCache.data);
       } else {
         const filtered = {
           ...newsCache.data,
@@ -1915,9 +1915,9 @@ app.get('/api/news', async (req, res) => {
     await redisCache.set(cacheKey, finalResponse, 2 * 60); // 2 minutes
     
     // Also update in-memory cache as fallback
-    newsCache = {
+      newsCache = {
       data: responseData, // Store full data (not filtered) for other source requests
-      timestamp: Date.now(),
+        timestamp: Date.now(),
       CACHE_DURATION: 2 * 60 * 1000, // 2 minutes
     };
     console.log(`[API:${req.id}] ✅ Cached ${finalResponse.totalResults} news articles (Redis + memory)`);

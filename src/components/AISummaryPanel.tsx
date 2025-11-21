@@ -576,11 +576,11 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
           setTimeout(() => loadSummary(retryCount + 1), delay);
         } else {
           console.error('Failed to fetch agent summary after retries:', error);
-          // NEVER clear decisions on error - always keep existing ones visible
-          // Only set loading to false if we were actually loading
-          if (!hasLoadedRef.current) {
-            hasLoadedRef.current = true;
-            setLoading(false);
+        // NEVER clear decisions on error - always keep existing ones visible
+        // Only set loading to false if we were actually loading
+        if (!hasLoadedRef.current) {
+          hasLoadedRef.current = true;
+          setLoading(false);
           }
         }
       }
