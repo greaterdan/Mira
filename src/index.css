@@ -511,3 +511,47 @@ All colors MUST be HSL.
   .mira-letter:nth-child(3) { animation-delay: 0.6s; }
   .mira-letter:nth-child(4) { animation-delay: 0.9s; }
 }
+
+/* Shine effect for button container - similar to MIRA text */
+@keyframes button-shine {
+  0% {
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.2),
+                0 0 12px rgba(255, 255, 255, 0.1),
+                0 0 20px rgba(255, 255, 255, 0.05);
+    filter: brightness(1);
+  }
+  25% {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.7),
+                0 0 30px rgba(255, 255, 255, 0.5),
+                0 0 50px rgba(255, 255, 255, 0.3),
+                0 0 80px rgba(255, 255, 255, 0.1);
+    filter: brightness(1.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8),
+                0 0 40px rgba(255, 255, 255, 0.6),
+                0 0 60px rgba(255, 255, 255, 0.4),
+                0 0 100px rgba(255, 255, 255, 0.2);
+    filter: brightness(1.3);
+  }
+  75% {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.7),
+                0 0 30px rgba(255, 255, 255, 0.5),
+                0 0 50px rgba(255, 255, 255, 0.3),
+                0 0 80px rgba(255, 255, 255, 0.1);
+    filter: brightness(1.2);
+  }
+  100% {
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.2),
+                0 0 12px rgba(255, 255, 255, 0.1),
+                0 0 20px rgba(255, 255, 255, 0.05);
+    filter: brightness(1);
+  }
+}
+
+.button-shine {
+  animation: button-shine 2.4s ease-in-out infinite;
+  will-change: box-shadow, filter;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}

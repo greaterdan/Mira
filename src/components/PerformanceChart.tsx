@@ -274,7 +274,7 @@ const createLineEndpoints = (selectedAgent: string | null, chartData: ChartDataP
 };
 
 interface PerformanceChartProps {
-  predictions?: Array<{ id: string; agentName?: string }>;
+  predictions?: Array<{ id: string; agentName?: string; probability?: number }>;
   selectedMarketId?: string | null;
   selectedAgentId?: string | null; // Agent selected from bottom navbar
 }
@@ -450,7 +450,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
             const capital = computeAgentCapital(backendId);
             if (typeof capital === 'number' && !isNaN(capital) && isFinite(capital)) {
               // Ensure capital is never below 0
-              newDataPoint[chartKey] = Math.max(0, capital);
+              (newDataPoint as any)[chartKey] = Math.max(0, capital);
               const prevPnl = lastAgentPnlRef.current.get(chartKey);
               const currentPnl = capital - STARTING_CAPITAL;
               const changed = prevPnl === undefined || Math.abs(prevPnl - currentPnl) > 0.01; // Only update if change > 1 cent
@@ -461,7 +461,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
             } else {
               // If calculation failed, use last known value or starting capital
               const lastPnl = lastAgentPnlRef.current.get(chartKey);
-              newDataPoint[chartKey] = lastPnl !== undefined 
+              (newDataPoint as any)[chartKey] = lastPnl !== undefined 
                 ? STARTING_CAPITAL + lastPnl 
                 : STARTING_CAPITAL;
             }
@@ -809,7 +809,7 @@ export const PerformanceChart = ({ predictions = [], selectedMarketId = null, se
           </ResponsiveContainer>
         </div>
       ) : (
-        <TechnicalView selectedAgentId={selectedAgentId} />
+        <TechnicalView />
       )}
     </div>
   );
