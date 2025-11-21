@@ -542,18 +542,16 @@ const Index = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch agent summary data from API - load immediately on mount with retry
+  // Fetch agent summary data via WebSocket - real-time updates
   useEffect(() => {
-    const loadAgentsSummary = async (retryCount = 0) => {
+    let unsubscribe: (() => void) | null = null;
+    let fallbackTimeout: NodeJS.Timeout | null = null;
+    
+    const setupWebSocket = async () => {
       try {
-        const { API_BASE_URL } = await import('@/lib/apiConfig');
-        // Use cache: 'no-store' to bypass browser cache, but server Redis cache will still work
-        const response = await fetch(`${API_BASE_URL}/api/agents/summary`, {
-          cache: 'no-store', // Always fetch fresh (server Redis cache handles caching)
-        });
+        const { subscribe } = await import('@/lib/websocket');
         
-        if (response.ok) {
-          const data = await response.json();
+        unsubscribe = await subscribe('agents:summary', (data: any) => {
           if (data.agents) {
             setAgents(data.agents.map((agent: any) => ({
               id: agent.id,
@@ -593,29 +591,76 @@ const Index = () => {
             });
             setAgentTrades(prev => ({ ...prev, ...tradesMap }));
           }
-        } else if (response.status === 503 && retryCount < 3) {
-          // Module still loading - retry with exponential backoff
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 3000); // 1s, 2s, 3s max
-          console.log(`[Summary] Module loading, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
-          setTimeout(() => loadAgentsSummary(retryCount + 1), delay);
-        }
+        });
+        
+        console.log('[Index] ✅ WebSocket connected for agents:summary');
       } catch (error) {
-        if (retryCount < 3) {
-          // Network error - retry
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 3000);
-          console.log(`[Summary] Error, retrying in ${delay}ms (attempt ${retryCount + 1}/3):`, error);
-          setTimeout(() => loadAgentsSummary(retryCount + 1), delay);
-        } else {
-          console.error('Failed to fetch agents summary after retries:', error);
-        }
+        console.warn('[Index] ⚠️  WebSocket failed, falling back to polling:', error);
+        // Fallback to polling if WebSocket fails
+        const loadAgentsSummary = async () => {
+          try {
+            const { API_BASE_URL } = await import('@/lib/apiConfig');
+            const response = await fetch(`${API_BASE_URL}/api/agents/summary`, {
+              cache: 'no-store',
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.agents) {
+                setAgents(data.agents.map((agent: any) => ({
+                  id: agent.id,
+                  name: agent.name,
+                  emoji: agent.emoji,
+                  isActive: false,
+                  pnl: agent.pnl || 0,
+                  openMarkets: agent.openMarkets || 0,
+                  lastTrade: agent.lastTrade || 'No trades',
+                })));
+              }
+              
+              if (data.tradesByAgent) {
+                const tradesMap: Record<string, Trade[]> = {};
+                Object.keys(data.tradesByAgent).forEach(agentId => {
+                  const rawTrades = data.tradesByAgent[agentId] || [];
+                  tradesMap[agentId] = rawTrades.map((trade: any) => ({
+                    id: trade.id,
+                    timestamp: new Date(trade.timestamp || trade.openedAt),
+                    market: trade.market || trade.marketQuestion || trade.marketId,
+                    marketSlug: trade.marketSlug,
+                    conditionId: trade.conditionId,
+                    decision: trade.decision || trade.side,
+                    confidence: typeof trade.confidence === 'number' ? trade.confidence : parseInt(trade.confidence) || 0,
+                    reasoning: typeof trade.reasoning === 'string' ? trade.reasoning : (Array.isArray(trade.reasoning) ? trade.reasoning.join(' ') : ''),
+                    reasoningBullets: Array.isArray(trade.reasoningBullets) ? trade.reasoningBullets : [],
+                    summaryDecision: trade.summaryDecision || trade.summary || '',
+                    entryProbability: trade.entryProbability,
+                    currentProbability: trade.currentProbability,
+                    webResearchSummary: Array.isArray(trade.webResearchSummary) ? trade.webResearchSummary : [],
+                    pnl: trade.pnl,
+                    investmentUsd: trade.investmentUsd || 0,
+                    status: trade.status || 'OPEN',
+                    predictionId: trade.predictionId || trade.marketId,
+                  }));
+                });
+                setAgentTrades(prev => ({ ...prev, ...tradesMap }));
+              }
+            }
+          } catch (err) {
+            console.error('[Index] Failed to fetch agents summary:', err);
+          }
+        };
+        
+        loadAgentsSummary();
+        fallbackTimeout = setInterval(loadAgentsSummary, 30 * 1000);
       }
     };
     
-    // Load immediately - don't wait
-    loadAgentsSummary();
-    // Refresh every 30 seconds - optimized: With Redis cache (30s TTL), this ensures fresh data
-    const interval = setInterval(() => loadAgentsSummary(0), 30 * 1000);
-    return () => clearInterval(interval);
+    setupWebSocket();
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (fallbackTimeout) clearInterval(fallbackTimeout);
+    };
   }, []);
 
   // Simulate AI trading activity (visual indicator only)

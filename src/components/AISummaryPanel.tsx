@@ -390,49 +390,204 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
   }, [decisions]);
 
 
-  // Fetch agent summary from API
+  // Process summary data (used by both WebSocket and fallback polling)
+  const processSummaryData = (data: any, isMounted: boolean) => {
+    if (!isMounted) return;
+    
+    // Convert API data to AIDecision format
+    const newDecisions: AIDecision[] = [];
+    
+    if (Array.isArray(data.agents)) {
+      setAgents(prevAgents => {
+        const merged = new Map<string, { id: string; name: string; emoji: string }>();
+        DEFAULT_AGENT_OPTIONS.forEach(agent => merged.set(agent.id, agent));
+        data.agents.forEach((agent: any) => {
+          if (!agent?.id) return;
+          const normalizedId = String(agent.id).toLowerCase();
+          merged.set(normalizedId, {
+            id: normalizedId,
+            name: agent.name || agent.displayName || normalizedId.toUpperCase(),
+            emoji: agent.emoji || agent.avatar || merged.get(normalizedId)?.emoji || '🤖',
+          });
+        });
+        return Array.from(merged.values());
+      });
+    }
+    
+    if (data.summary?.agentSummaries) {
+      for (const agentSummary of data.summary.agentSummaries) {
+        const agentId = agentSummary.agentId;
+        const trades = data.tradesByAgent?.[agentId] || [];
+        
+        // Get all recent trades (OPEN and CLOSED) and research decisions
+        const uniqueDecisions = new Map<string, any>();
+        
+        // Process trades
+        trades
+          .sort((a: any, b: any) => {
+            const timeA = a.openedAt ? new Date(a.openedAt).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+            const timeB = b.openedAt ? new Date(b.openedAt).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+            return timeB - timeA;
+          })
+          .forEach((trade: any) => {
+            const marketKey = trade.marketQuestion || trade.market || trade.marketId;
+            if (!uniqueDecisions.has(marketKey)) {
+              uniqueDecisions.set(marketKey, { ...trade, type: 'TRADE' });
+            }
+          });
+        
+        // Process research decisions
+        const researchDecisions = data.researchByAgent?.[agentId] || [];
+        researchDecisions
+          .sort((a: any, b: any) => {
+            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return timeB - timeA;
+          })
+          .forEach((research: any) => {
+            const marketKey = research.marketQuestion || research.market || research.marketId;
+            if (!uniqueDecisions.has(marketKey)) {
+              uniqueDecisions.set(marketKey, { ...research, type: 'RESEARCH', action: 'RESEARCH' });
+            }
+          });
+        
+        const uniqueDecisionsArray = Array.from(uniqueDecisions.values()).slice(0, 8);
+        
+        uniqueDecisionsArray.forEach((decision: any, index: number) => {
+          const frontendAgentId = BACKEND_TO_FRONTEND_AGENT_ID[agentId] || agentId.toLowerCase();
+          const agentMeta =
+            data.agents?.find((a: any) => a?.id && String(a.id).toLowerCase() === frontendAgentId) ||
+            DEFAULT_AGENT_OPTIONS.find(agent => agent.id === frontendAgentId);
+          
+          const action = decision.action || decision.type || 'TRADE';
+          
+          let reasoningText = '';
+          if (Array.isArray(decision.reasoning)) {
+            const bullets = decision.reasoning.slice(0, 3);
+            reasoningText = bullets.join(' ').substring(0, 150);
+            if (reasoningText.length === 150) reasoningText += '...';
+          } else if (decision.reasoning) {
+            reasoningText = decision.reasoning.substring(0, 150);
+            if (reasoningText.length === 150) reasoningText += '...';
+          } else {
+            reasoningText = action === 'RESEARCH' ? 'Web research and market analysis' : 'Analysis based on market data';
+          }
+          
+          const decisionTimestamp = decision.openedAt ? new Date(decision.openedAt) : (decision.timestamp ? new Date(decision.timestamp) : new Date());
+          const rawDecision = decision.decision || decision.side || 'YES';
+          let decisionValue: "YES" | "NO" = (rawDecision === 'YES' || rawDecision === 'NO') ? rawDecision : 'YES';
+          
+          newDecisions.push({
+            id: decision.id || `${agentId}-${decision.marketId}-${index}`,
+            agentId: frontendAgentId,
+            agentName: agentMeta?.name || agentSummary.agentName || agentId,
+            agentEmoji: agentMeta?.emoji || '🤖',
+            timestamp: decisionTimestamp,
+            action: action,
+            market: decision.marketQuestion || decision.market || decision.marketId || 'Unknown Market',
+            marketId: decision.marketId || decision.predictionId,
+            decision: decisionValue,
+            confidence: typeof decision.confidence === 'number' ? decision.confidence : Math.round((decision.confidence || 0) * 100),
+            reasoning: reasoningText,
+            fullReasoning: Array.isArray(decision.reasoning) ? decision.reasoning : (decision.reasoning ? [decision.reasoning] : []),
+            investmentUsd: action === 'TRADE' ? (decision.investmentUsd || 0) : undefined,
+            webResearchSummary: Array.isArray(decision.webResearchSummary) ? decision.webResearchSummary : [],
+            decisionHistory: [],
+          });
+        });
+      }
+    }
+    
+    // Sort by timestamp
+    newDecisions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    // Track new decisions
+    const previousMap = new Map(decisionsRef.current.map(decision => [decision.id, decision]));
+    const freshIds = new Set<string>();
+    const freshOrder = new Map<string, number>();
+    newDecisions.forEach(decision => {
+      const existing = previousMap.get(decision.id);
+      if (!existing || existing.timestamp.getTime() !== decision.timestamp.getTime() || existing.reasoning !== decision.reasoning) {
+        freshOrder.set(decision.id, freshOrder.size);
+        freshIds.add(decision.id);
+      }
+    });
+    newDecisionIdsRef.current = freshIds;
+    newDecisionOrderRef.current = freshOrder;
+    
+    // Merge new decisions
+    setDecisions(prev => {
+      if (!isMounted) return prev;
+      if (newDecisions.length === 0) return prev;
+      
+      const merged = [...newDecisions];
+      const seenIds = new Set(newDecisions.map(d => d.id));
+      const remaining = prev.filter(d => !seenIds.has(d.id));
+      merged.push(...remaining);
+      merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      return merged.slice(0, MAX_DECISIONS);
+    });
+    
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      setLoading(false);
+    }
+  };
+
+  // Fetch agent summary via WebSocket - real-time updates
   useEffect(() => {
     let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
+    let fallbackInterval: NodeJS.Timeout | null = null;
     
-    const loadSummary = async (retryCount = 0) => {
+    const setupWebSocket = async () => {
       try {
-        const { API_BASE_URL } = await import('@/lib/apiConfig');
-        const response = await fetch(`${API_BASE_URL}/api/agents/summary`, {
-          cache: 'no-store', // Bypass browser cache, use server Redis cache
+        const { subscribe } = await import('@/lib/websocket');
+        
+        unsubscribe = await subscribe('agents:summary', (data: any) => {
+          processSummaryData(data, isMounted);
         });
         
-        if (!isMounted) return; // Component unmounted, don't update state
+        console.log('[AISummary] ✅ WebSocket connected for agents:summary');
+      } catch (error) {
+        console.warn('[AISummary] ⚠️  WebSocket failed, falling back to polling:', error);
         
-        if (response.status === 503 && retryCount < 3) {
-          // Module still loading - retry with exponential backoff
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 3000); // 1s, 2s, 3s max
-          console.log(`[AISummary] Module loading, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
-          setTimeout(() => loadSummary(retryCount + 1), delay);
-          return;
-        }
+        // Fallback to polling
+        const loadSummary = async () => {
+          try {
+            const { API_BASE_URL } = await import('@/lib/apiConfig');
+            const response = await fetch(`${API_BASE_URL}/api/agents/summary`, {
+              cache: 'no-store',
+            });
+            
+            if (!isMounted) return;
+            
+            if (response.ok) {
+              const data = await response.json();
+              processSummaryData(data, isMounted);
+            }
+          } catch (err) {
+            console.error('[AISummary] Failed to fetch summary:', err);
+            if (!hasLoadedRef.current) {
+              hasLoadedRef.current = true;
+              setLoading(false);
+            }
+          }
+        };
         
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Convert API data to AIDecision format
-          const newDecisions: AIDecision[] = [];
-          
-  if (Array.isArray(data.agents)) {
-    setAgents(prevAgents => {
-      const merged = new Map<string, { id: string; name: string; emoji: string }>();
-      DEFAULT_AGENT_OPTIONS.forEach(agent => merged.set(agent.id, agent));
-      data.agents.forEach((agent: any) => {
-        if (!agent?.id) return;
-        const normalizedId = String(agent.id).toLowerCase();
-        merged.set(normalizedId, {
-          id: normalizedId,
-          name: agent.name || agent.displayName || normalizedId.toUpperCase(),
-          emoji: agent.emoji || agent.avatar || merged.get(normalizedId)?.emoji || '🤖',
-        });
-      });
-      return Array.from(merged.values());
-    });
-  }
+        loadSummary();
+        fallbackInterval = setInterval(loadSummary, 30 * 1000);
+      }
+    };
+    
+    setupWebSocket();
+    
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
+  }, []); // Run once on mount
           
           if (data.summary?.agentSummaries) {
             for (const agentSummary of data.summary.agentSummaries) {

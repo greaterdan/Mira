@@ -2,6 +2,8 @@
 // All market processing happens server-side
 
 import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
 import rateLimit from 'express-rate-limit';
@@ -58,6 +60,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
+
+// Create HTTP server and Socket.IO server
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || (isProduction ? ['https://mira.tech', 'https://probly.tech'] : ['http://localhost:5173', 'http://localhost:3000']),
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'], // Fallback to polling if WebSocket fails
+});
 
 // SECURITY: Trust proxy if behind reverse proxy (Railway, etc.)
 app.set('trust proxy', 1);
@@ -2061,6 +2074,103 @@ app.get('/api/agents/stats', apiLimiter, async (req, res) => {
 });
 console.log('✅ Registered: GET /api/agents/stats');
 
+// ============================================================================
+// WebSocket Service - Push updates based on Redis cache
+// ============================================================================
+
+// WebSocket connection handling
+io.on('connection', (socket) => {
+  console.log(`[WS] ✅ Client connected: ${socket.id}`);
+  
+  // Handle subscriptions
+  socket.on('subscribe', async (channel) => {
+    console.log(`[WS] 📡 Client ${socket.id} subscribed to: ${channel}`);
+    socket.join(channel);
+    
+    // Send initial data immediately if available in cache
+    try {
+      if (channel === 'agents:summary') {
+        const cached = await redisCache.get('agents:summary');
+        if (cached) {
+          socket.emit('agents:summary', cached);
+          console.log(`[WS] ✅ Sent cached agents:summary to ${socket.id}`);
+        }
+      } else if (channel.startsWith('predictions:')) {
+        const cacheKey = channel;
+        const cached = await redisCache.get(cacheKey);
+        if (cached) {
+          socket.emit('predictions', cached);
+          console.log(`[WS] ✅ Sent cached ${cacheKey} to ${socket.id}`);
+        }
+      } else if (channel === 'news') {
+        const cached = await redisCache.get('news:all');
+        if (cached) {
+          socket.emit('news', cached);
+          console.log(`[WS] ✅ Sent cached news to ${socket.id}`);
+        }
+      }
+    } catch (error) {
+      console.error(`[WS] ⚠️  Error sending initial data to ${socket.id}:`, error.message);
+    }
+  });
+  
+  socket.on('unsubscribe', (channel) => {
+    console.log(`[WS] 📴 Client ${socket.id} unsubscribed from: ${channel}`);
+    socket.leave(channel);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`[WS] ❌ Client disconnected: ${socket.id}`);
+  });
+});
+
+// Push updates when cache refreshes
+// Agent Summary - every 30 seconds (matches cache TTL)
+setInterval(async () => {
+  try {
+    const cached = await redisCache.get('agents:summary');
+    if (cached) {
+      io.to('agents:summary').emit('agents:summary', cached);
+      console.log(`[WS] 📤 Pushed agents:summary to ${io.sockets.adapter.rooms.get('agents:summary')?.size || 0} clients`);
+    }
+  } catch (error) {
+    console.error('[WS] ⚠️  Error pushing agents:summary:', error.message);
+  }
+}, 30000); // 30 seconds - matches cache TTL
+
+// Predictions - every 5 minutes (matches cache TTL)
+setInterval(async () => {
+  try {
+    // Push for common categories
+    const categories = ['All Markets', 'Trending', 'Breaking', 'New'];
+    for (const category of categories) {
+      const cacheKey = `predictions:${category}:5000`;
+      const cached = await redisCache.get(cacheKey);
+      if (cached) {
+        io.to(cacheKey).emit('predictions', cached);
+        console.log(`[WS] 📤 Pushed ${cacheKey} to ${io.sockets.adapter.rooms.get(cacheKey)?.size || 0} clients`);
+      }
+    }
+  } catch (error) {
+    console.error('[WS] ⚠️  Error pushing predictions:', error.message);
+  }
+}, 5 * 60 * 1000); // 5 minutes - matches cache TTL
+
+// News - every 2 minutes (matches cache TTL)
+setInterval(async () => {
+  try {
+    const cached = await redisCache.get('news:all');
+    if (cached) {
+      io.to('news').emit('news', cached);
+      console.log(`[WS] 📤 Pushed news to ${io.sockets.adapter.rooms.get('news')?.size || 0} clients`);
+    }
+  } catch (error) {
+    console.error('[WS] ⚠️  Error pushing news:', error.message);
+  }
+}, 2 * 60 * 1000); // 2 minutes - matches cache TTL
+
+console.log('✅ WebSocket service initialized');
+
 // Waitlist endpoint - sends email notification
 // SECURITY: Apply rate limiting, CSRF protection, and input sanitization
 app.post('/api/waitlist', waitlistLimiter, (req, res, next) => {
@@ -2326,8 +2436,9 @@ if (process.env.VERCEL !== '1' && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   
   try {
     // Start server with error handling
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const server = httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ WebSocket server ready`);
       console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/api/health`);
       console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`✅ Railway PORT: ${process.env.PORT || 'not set (using fallback)'}`);

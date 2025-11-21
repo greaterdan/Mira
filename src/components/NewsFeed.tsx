@@ -69,12 +69,62 @@ export const NewsFeed = () => {
   const [selectedCategory, setSelectedCategory] = useState<NewsCategory>('All');
   const [timeKey, setTimeKey] = useState(0); // Force recalculation of timestamps
 
-  // Fetch news from server proxy (which caches and respects rate limits)
+  // Process news data (used by both WebSocket and fallback polling)
+  const processNewsData = (data: NewsAPIResponse) => {
+    if (data.status === 'ok' && data.articles) {
+      // Transform articles to NewsItem format
+      const transformedArticles: NewsItem[] = data.articles
+        .filter(article => article.title && article.title !== '[Removed]')
+        .slice(0, 100)
+        .map((article, index) => {
+          const content = `${article.title} ${article.description || ''}`.toLowerCase();
+          let category = 'News';
+          
+          const cryptoKeywords = ['crypto', 'bitcoin', 'ethereum', 'blockchain', 'btc', 'eth', 'xrp', 'solana', 'defi', 'nft', 'altcoin', 'zcash', 'cryptocurrency'];
+          if (cryptoKeywords.some(keyword => content.includes(keyword))) {
+            category = 'Crypto';
+          } else if (content.includes('election') || content.includes('politic') || content.includes('president')) {
+            category = 'Politics';
+          } else if (content.includes('stock') || content.includes('market') || content.includes('dow') || content.includes('s&p')) {
+            category = 'Markets';
+          } else if (content.includes('economy') || content.includes('fed') || content.includes('inflation')) {
+            category = 'Economics';
+          } else if (content.includes('ai') || content.includes('technology') || content.includes('tech')) {
+            category = 'Technology';
+          } else if (content.includes('sport') || content.includes('game')) {
+            category = 'Sports';
+          } else if (content.includes('climate') || content.includes('weather')) {
+            category = 'Climate';
+          }
+          
+          return {
+            id: article.url || `news-${index}`,
+            title: article.title,
+            source: article.source?.name || 'Unknown',
+            time: '',
+            category,
+            url: article.url,
+            imageUrl: article.urlToImage || undefined,
+            description: article.description || undefined,
+            publishedAt: article.publishedAt,
+          };
+        });
+
+      transformedArticles.sort((a, b) => {
+        const timeA = new Date(a.publishedAt || 0).getTime();
+        const timeB = new Date(b.publishedAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      setAllNews(transformedArticles);
+      setLastUpdate(new Date());
+    }
+  };
+
+  // Fetch news from server proxy (fallback)
   const fetchNews = async () => {
     try {
       setLoading(true);
-      
-      // Use server proxy to avoid CORS and respect rate limits - always fetch from all sources
       const { API_BASE_URL } = await import('@/lib/apiConfig');
       const apiUrl = `${API_BASE_URL}/api/news?source=all`;
       const response = await fetch(apiUrl);
@@ -84,66 +134,12 @@ export const NewsFeed = () => {
       }
 
       const data: NewsAPIResponse = await response.json();
-      
-      if (data.status === 'ok' && data.articles) {
-        // Transform articles to NewsItem format
-        const transformedArticles: NewsItem[] = data.articles
-          .filter(article => article.title && article.title !== '[Removed]') // Filter out removed articles
-          .slice(0, 100) // Limit to 100 most recent articles to ensure we have enough for all categories
-          .map((article, index) => {
-            // Determine category from title/description
-            const content = `${article.title} ${article.description || ''}`.toLowerCase();
-            let category = 'News';
-            
-            // Check crypto first (before other categories) to ensure crypto articles are properly categorized
-            const cryptoKeywords = ['crypto', 'bitcoin', 'ethereum', 'blockchain', 'btc', 'eth', 'xrp', 'solana', 'defi', 'nft', 'altcoin', 'zcash', 'cryptocurrency'];
-            if (cryptoKeywords.some(keyword => content.includes(keyword))) {
-              category = 'Crypto';
-            } else if (content.includes('election') || content.includes('politic') || content.includes('president')) {
-              category = 'Politics';
-            } else if (content.includes('stock') || content.includes('market') || content.includes('dow') || content.includes('s&p')) {
-              category = 'Markets';
-            } else if (content.includes('economy') || content.includes('fed') || content.includes('inflation')) {
-              category = 'Economics';
-            } else if (content.includes('ai') || content.includes('technology') || content.includes('tech')) {
-              category = 'Technology';
-            } else if (content.includes('sport') || content.includes('game')) {
-              category = 'Sports';
-            } else if (content.includes('climate') || content.includes('weather')) {
-              category = 'Climate';
-            }
-            
-            return {
-              id: article.url || `news-${index}`,
-              title: article.title,
-              source: article.source?.name || 'Unknown',
-              time: '', // Will be calculated dynamically on render
-              category,
-              url: article.url,
-              imageUrl: article.urlToImage || undefined,
-              description: article.description || undefined,
-              publishedAt: article.publishedAt,
-            };
-          });
-
-        // Sort by published date (newest first)
-        transformedArticles.sort((a, b) => {
-          const timeA = new Date(a.publishedAt || 0).getTime();
-          const timeB = new Date(b.publishedAt || 0).getTime();
-          return timeB - timeA;
-        });
-
-        setAllNews(transformedArticles);
-        setLastUpdate(new Date());
-      }
+      processNewsData(data);
     } catch (error) {
-      // Log error for debugging
       console.error('Error fetching news:', error);
-      // If we have no news and there's an error, show a helpful message
       if (allNews.length === 0) {
         console.warn('No news available - check if news API keys are configured on the server');
       }
-      // Keep existing news on error
     } finally {
       setLoading(false);
     }
@@ -162,19 +158,36 @@ export const NewsFeed = () => {
     }));
   }, [allNews, selectedCategory, timeKey]); // Include timeKey to force recalculation
 
-  // Initial fetch
+  // Fetch news via WebSocket - real-time updates
   useEffect(() => {
-    fetchNews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Update every 2.5 minutes - server caches for 2 minutes, so poll slightly after cache refresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchNews();
-    }, 2.5 * 60 * 1000); // 2.5 minutes (slightly longer than server cache of 2 minutes)
-
-    return () => clearInterval(interval);
+    let unsubscribe: (() => void) | null = null;
+    let fallbackInterval: NodeJS.Timeout | null = null;
+    
+    const setupWebSocket = async () => {
+      try {
+        const { subscribe } = await import('@/lib/websocket');
+        
+        unsubscribe = await subscribe('news', (data: NewsAPIResponse) => {
+          processNewsData(data);
+          setLoading(false);
+        });
+        
+        console.log('[NewsFeed] ✅ WebSocket connected for news');
+      } catch (error) {
+        console.warn('[NewsFeed] ⚠️  WebSocket failed, falling back to polling:', error);
+        
+        // Fallback to polling
+        fetchNews();
+        fallbackInterval = setInterval(fetchNews, 2.5 * 60 * 1000);
+      }
+    };
+    
+    setupWebSocket();
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, []);
 
   // Update timestamps every minute to keep them current
