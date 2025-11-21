@@ -518,16 +518,30 @@ if (redisUrl) {
     });
     
     cacheClient.on('error', (err) => {
-      console.error('[CACHE] Redis cache error:', err.message);
+      console.error('[CACHE] ❌ Redis cache error:', err.message);
     });
     
     cacheClient.on('connect', () => {
-      console.log('[CACHE] ✅ Redis cache client connected');
+      console.log('[CACHE] ✅ Redis cache client connected successfully');
+    });
+    
+    cacheClient.on('ready', () => {
+      console.log('[CACHE] ✅ Redis cache client ready for operations');
+    });
+    
+    cacheClient.on('reconnecting', () => {
+      console.log('[CACHE] 🔄 Redis cache client reconnecting...');
+    });
+    
+    cacheClient.on('end', () => {
+      console.warn('[CACHE] ⚠️  Redis cache client connection ended');
     });
     
     // Try to connect in background
-    cacheClient.connect().catch((err) => {
-      console.warn('[CACHE] ⚠️  Redis cache connection failed, using in-memory fallback');
+    cacheClient.connect().then(() => {
+      console.log('[CACHE] ✅ Redis cache client connection established');
+    }).catch((err) => {
+      console.warn('[CACHE] ⚠️  Redis cache connection failed, using in-memory fallback:', err.message);
       cacheClient = null;
     });
     
@@ -553,26 +567,48 @@ if (redisUrl) {
   }
 }
 
-// Redis cache helper functions
+// Redis cache helper functions with detailed logging
 const redisCache = {
   async get(key) {
-    if (!cacheClient) return null;
+    if (!cacheClient) {
+      console.log(`[CACHE] ⚠️  Redis not available for key: ${key} (using fallback)`);
+      return null;
+    }
     try {
+      const startTime = Date.now();
       const data = await cacheClient.get(key);
-      return data ? JSON.parse(data) : null;
+      const duration = Date.now() - startTime;
+      
+      if (data) {
+        const parsed = JSON.parse(data);
+        const sizeKB = (JSON.stringify(parsed).length / 1024).toFixed(2);
+        console.log(`[CACHE] ✅ HIT: ${key} (${sizeKB}KB, ${duration}ms)`);
+        return parsed;
+      } else {
+        console.log(`[CACHE] ❌ MISS: ${key} (${duration}ms)`);
+        return null;
+      }
     } catch (error) {
-      console.warn(`[CACHE] Failed to get ${key} from Redis:`, error.message);
+      console.warn(`[CACHE] ⚠️  Error getting ${key} from Redis:`, error.message);
       return null;
     }
   },
   
   async set(key, value, ttlSeconds = 300) {
-    if (!cacheClient) return false;
+    if (!cacheClient) {
+      console.log(`[CACHE] ⚠️  Redis not available for key: ${key} (skipping cache)`);
+      return false;
+    }
     try {
-      await cacheClient.setEx(key, ttlSeconds, JSON.stringify(value));
+      const startTime = Date.now();
+      const dataStr = JSON.stringify(value);
+      const sizeKB = (dataStr.length / 1024).toFixed(2);
+      await cacheClient.setEx(key, ttlSeconds, dataStr);
+      const duration = Date.now() - startTime;
+      console.log(`[CACHE] 💾 SET: ${key} (${sizeKB}KB, TTL: ${ttlSeconds}s, ${duration}ms)`);
       return true;
     } catch (error) {
-      console.warn(`[CACHE] Failed to set ${key} in Redis:`, error.message);
+      console.warn(`[CACHE] ⚠️  Failed to set ${key} in Redis:`, error.message);
       return false;
     }
   },
@@ -581,9 +617,10 @@ const redisCache = {
     if (!cacheClient) return false;
     try {
       await cacheClient.del(key);
+      console.log(`[CACHE] 🗑️  DEL: ${key}`);
       return true;
     } catch (error) {
-      console.warn(`[CACHE] Failed to delete ${key} from Redis:`, error.message);
+      console.warn(`[CACHE] ⚠️  Failed to delete ${key} from Redis:`, error.message);
       return false;
     }
   }
@@ -791,9 +828,11 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
     if (!isSearching) {
       // Try Redis cache first
       const cacheKey = `predictions:${category}:${limit}`;
+      console.log(`[API:${req.id}] 🔍 Checking Redis cache for: ${cacheKey}`);
       const cached = await redisCache.get(cacheKey);
       if (cached) {
         // Cache hit from Redis - instant response
+        console.log(`[API:${req.id}] ✅ Returning cached predictions (${cached.count || 0} items)`);
         return res.json(cached);
       }
       
@@ -803,9 +842,10 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
           predictionsCache.category === category &&
           predictionsCache.timestamp && 
           (cacheNow - predictionsCache.timestamp) < predictionsCache.CACHE_DURATION) {
-        // Cache hit from memory - don't log to reduce log volume
+        console.log(`[API:${req.id}] 💾 Cache hit from memory (fallback)`);
         return res.json(predictionsCache.data);
       }
+      console.log(`[API:${req.id}] ❌ Cache miss - fetching from Polymarket API`);
     }
     
     // Only log cache misses occasionally (every 10th miss) to reduce log spam
@@ -964,6 +1004,7 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
     // Cache in Redis (5 minutes) if not searching
     if (!isSearching) {
       const cacheKey = `predictions:${category}:${limit}`;
+      console.log(`[API:${req.id}] 💾 Caching predictions in Redis: ${cacheKey}`);
       await redisCache.set(cacheKey, responseData, 5 * 60); // 5 minutes TTL
       
       // Also update in-memory cache as fallback
@@ -973,6 +1014,7 @@ app.get('/api/predictions', predictionsLimiter, async (req, res) => {
         category: category,
         CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
       };
+      console.log(`[API:${req.id}] ✅ Cached ${responseData.count} predictions (Redis + memory)`);
     }
     
     res.json(responseData);
@@ -1751,15 +1793,18 @@ app.get('/api/news', async (req, res) => {
   try {
     // Check Redis cache first
     const cacheKey = `news:${source}`;
+    console.log(`[API:${req.id}] 🔍 Checking Redis cache for: ${cacheKey}`);
     const cached = await redisCache.get(cacheKey);
     if (cached) {
       // Cache hit from Redis - instant response
+      console.log(`[API:${req.id}] ✅ Returning cached news (${cached.totalResults || 0} articles)`);
       return res.json(cached);
     }
     
     // Fallback to in-memory cache
     const cacheNow = Date.now();
     if (newsCache.data && newsCache.timestamp && (cacheNow - newsCache.timestamp) < newsCache.CACHE_DURATION) {
+      console.log(`[API:${req.id}] 💾 Cache hit from memory (fallback)`);
       // Filter by source if needed
       if (source === 'all') {
         return res.json(newsCache.data);
@@ -1771,6 +1816,7 @@ app.get('/api/news', async (req, res) => {
         return res.json(filtered);
       }
     }
+    console.log(`[API:${req.id}] ❌ Cache miss - fetching from news APIs`);
 
     // Fetch from all APIs in parallel
     const fetchPromises = [];
@@ -1865,6 +1911,7 @@ app.get('/api/news', async (req, res) => {
     }
     
     // Cache in Redis (2 minutes TTL)
+    console.log(`[API:${req.id}] 💾 Caching news in Redis: ${cacheKey}`);
     await redisCache.set(cacheKey, finalResponse, 2 * 60); // 2 minutes
     
     // Also update in-memory cache as fallback
@@ -1873,6 +1920,7 @@ app.get('/api/news', async (req, res) => {
       timestamp: Date.now(),
       CACHE_DURATION: 2 * 60 * 1000, // 2 minutes
     };
+    console.log(`[API:${req.id}] ✅ Cached ${finalResponse.totalResults} news articles (Redis + memory)`);
     
     // ALWAYS log final results
     if (allArticles.length === 0) {
@@ -1947,11 +1995,14 @@ app.get('/api/agents/summary', apiLimiter, async (req, res) => {
   try {
     // Check Redis cache first (30 second cache for agent summary)
     const cacheKey = 'agents:summary';
+    console.log(`[API:${req.id}] 🔍 Checking Redis cache for: ${cacheKey}`);
     const cached = await redisCache.get(cacheKey);
     if (cached) {
       // Cache hit from Redis - instant response
+      console.log(`[API:${req.id}] ✅ Returning cached agent summary (${cached.agents?.length || 0} agents)`);
       return res.json(cached);
     }
+    console.log(`[API:${req.id}] ❌ Cache miss - generating agent summary`);
     
     if (!getAgentsSummary) {
       const agentsModule = await import('./api/agents.js');
@@ -1967,8 +2018,13 @@ app.get('/api/agents/summary', apiLimiter, async (req, res) => {
       responseData = data;
       // Cache in Redis (30 seconds TTL - agent summary changes frequently)
       if (responseData) {
-        redisCache.set(cacheKey, responseData, 30).catch(err => {
-          console.warn('[CACHE] Failed to cache agent summary:', err.message);
+        console.log(`[API:${req.id}] 💾 Caching agent summary in Redis: ${cacheKey}`);
+        redisCache.set(cacheKey, responseData, 30).then(success => {
+          if (success) {
+            console.log(`[API:${req.id}] ✅ Cached agent summary (${responseData.agents?.length || 0} agents)`);
+          }
+        }).catch(err => {
+          console.warn(`[API:${req.id}] ⚠️  Failed to cache agent summary:`, err.message);
         });
       }
       return originalJson(data);
