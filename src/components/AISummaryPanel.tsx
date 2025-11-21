@@ -413,125 +413,125 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
       return Array.from(merged.values());
     });
   }
-    
-    if (data.summary?.agentSummaries) {
-      for (const agentSummary of data.summary.agentSummaries) {
-        const agentId = agentSummary.agentId;
-        const trades = data.tradesByAgent?.[agentId] || [];
-        
-        // Get all recent trades (OPEN and CLOSED) and research decisions
-        const uniqueDecisions = new Map<string, any>();
-        
-        // Process trades
-        trades
-          .sort((a: any, b: any) => {
-            const timeA = a.openedAt ? new Date(a.openedAt).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-            const timeB = b.openedAt ? new Date(b.openedAt).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+          
+          if (data.summary?.agentSummaries) {
+            for (const agentSummary of data.summary.agentSummaries) {
+              const agentId = agentSummary.agentId;
+              const trades = data.tradesByAgent?.[agentId] || [];
+              
+              // Get all recent trades (OPEN and CLOSED) and research decisions
+              const uniqueDecisions = new Map<string, any>();
+              
+              // Process trades
+              trades
+                .sort((a: any, b: any) => {
+                  const timeA = a.openedAt ? new Date(a.openedAt).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                  const timeB = b.openedAt ? new Date(b.openedAt).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
             return timeB - timeA;
-          })
-          .forEach((trade: any) => {
-            const marketKey = trade.marketQuestion || trade.market || trade.marketId;
-            if (!uniqueDecisions.has(marketKey)) {
-              uniqueDecisions.set(marketKey, { ...trade, type: 'TRADE' });
-            }
-          });
-        
+                })
+                .forEach((trade: any) => {
+                  const marketKey = trade.marketQuestion || trade.market || trade.marketId;
+                  if (!uniqueDecisions.has(marketKey)) {
+                    uniqueDecisions.set(marketKey, { ...trade, type: 'TRADE' });
+                  }
+                });
+              
         // Process research decisions
-        const researchDecisions = data.researchByAgent?.[agentId] || [];
-        researchDecisions
-          .sort((a: any, b: any) => {
-            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-            return timeB - timeA;
-          })
-          .forEach((research: any) => {
-            const marketKey = research.marketQuestion || research.market || research.marketId;
-            if (!uniqueDecisions.has(marketKey)) {
-              uniqueDecisions.set(marketKey, { ...research, type: 'RESEARCH', action: 'RESEARCH' });
-            }
-          });
-        
-        const uniqueDecisionsArray = Array.from(uniqueDecisions.values()).slice(0, 8);
-        
-        uniqueDecisionsArray.forEach((decision: any, index: number) => {
-          const frontendAgentId = BACKEND_TO_FRONTEND_AGENT_ID[agentId] || agentId.toLowerCase();
-          const agentMeta =
-            data.agents?.find((a: any) => a?.id && String(a.id).toLowerCase() === frontendAgentId) ||
-            DEFAULT_AGENT_OPTIONS.find(agent => agent.id === frontendAgentId);
-          
-          const action = decision.action || decision.type || 'TRADE';
-          
-          let reasoningText = '';
-          if (Array.isArray(decision.reasoning)) {
-            const bullets = decision.reasoning.slice(0, 3);
-            reasoningText = bullets.join(' ').substring(0, 150);
-            if (reasoningText.length === 150) reasoningText += '...';
-          } else if (decision.reasoning) {
-            reasoningText = decision.reasoning.substring(0, 150);
-            if (reasoningText.length === 150) reasoningText += '...';
-          } else {
-            reasoningText = action === 'RESEARCH' ? 'Web research and market analysis' : 'Analysis based on market data';
-          }
-          
-          const decisionTimestamp = decision.openedAt ? new Date(decision.openedAt) : (decision.timestamp ? new Date(decision.timestamp) : new Date());
-          const rawDecision = decision.decision || decision.side || 'YES';
-          let decisionValue: "YES" | "NO" = (rawDecision === 'YES' || rawDecision === 'NO') ? rawDecision : 'YES';
-          
-          newDecisions.push({
+              const researchDecisions = data.researchByAgent?.[agentId] || [];
+              researchDecisions
+                .sort((a: any, b: any) => {
+                  const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                  const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                  return timeB - timeA;
+                })
+                .forEach((research: any) => {
+                  const marketKey = research.marketQuestion || research.market || research.marketId;
+                  if (!uniqueDecisions.has(marketKey)) {
+                    uniqueDecisions.set(marketKey, { ...research, type: 'RESEARCH', action: 'RESEARCH' });
+                  }
+                });
+              
+              const uniqueDecisionsArray = Array.from(uniqueDecisions.values()).slice(0, 8);
+              
+              uniqueDecisionsArray.forEach((decision: any, index: number) => {
+                const frontendAgentId = BACKEND_TO_FRONTEND_AGENT_ID[agentId] || agentId.toLowerCase();
+                const agentMeta =
+                  data.agents?.find((a: any) => a?.id && String(a.id).toLowerCase() === frontendAgentId) ||
+                  DEFAULT_AGENT_OPTIONS.find(agent => agent.id === frontendAgentId);
+                
+                const action = decision.action || decision.type || 'TRADE';
+                
+                let reasoningText = '';
+                if (Array.isArray(decision.reasoning)) {
+                  const bullets = decision.reasoning.slice(0, 3);
+                  reasoningText = bullets.join(' ').substring(0, 150);
+                  if (reasoningText.length === 150) reasoningText += '...';
+                } else if (decision.reasoning) {
+                  reasoningText = decision.reasoning.substring(0, 150);
+                  if (reasoningText.length === 150) reasoningText += '...';
+                } else {
+                  reasoningText = action === 'RESEARCH' ? 'Web research and market analysis' : 'Analysis based on market data';
+                }
+                
+                const decisionTimestamp = decision.openedAt ? new Date(decision.openedAt) : (decision.timestamp ? new Date(decision.timestamp) : new Date());
+                const rawDecision = decision.decision || decision.side || 'YES';
+                let decisionValue: "YES" | "NO" = (rawDecision === 'YES' || rawDecision === 'NO') ? rawDecision : 'YES';
+                
+                newDecisions.push({
             id: decision.id || `${agentId}-${decision.marketId}-${index}`,
-            agentId: frontendAgentId,
-            agentName: agentMeta?.name || agentSummary.agentName || agentId,
-            agentEmoji: agentMeta?.emoji || '🤖',
-            timestamp: decisionTimestamp,
+                  agentId: frontendAgentId,
+                  agentName: agentMeta?.name || agentSummary.agentName || agentId,
+                  agentEmoji: agentMeta?.emoji || '🤖',
+                  timestamp: decisionTimestamp,
             action: action,
-            market: decision.marketQuestion || decision.market || decision.marketId || 'Unknown Market',
+                  market: decision.marketQuestion || decision.market || decision.marketId || 'Unknown Market',
             marketId: decision.marketId || decision.predictionId,
-            decision: decisionValue,
-            confidence: typeof decision.confidence === 'number' ? decision.confidence : Math.round((decision.confidence || 0) * 100),
-            reasoning: reasoningText,
+                  decision: decisionValue,
+                  confidence: typeof decision.confidence === 'number' ? decision.confidence : Math.round((decision.confidence || 0) * 100),
+                  reasoning: reasoningText,
             fullReasoning: Array.isArray(decision.reasoning) ? decision.reasoning : (decision.reasoning ? [decision.reasoning] : []),
             investmentUsd: action === 'TRADE' ? (decision.investmentUsd || 0) : undefined,
-            webResearchSummary: Array.isArray(decision.webResearchSummary) ? decision.webResearchSummary : [],
+                  webResearchSummary: Array.isArray(decision.webResearchSummary) ? decision.webResearchSummary : [],
             decisionHistory: [],
-          });
-        });
-      }
-    }
-    
+                });
+              });
+            }
+          }
+          
     // Sort by timestamp
-    newDecisions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
+          newDecisions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
     // Track new decisions
-    const previousMap = new Map(decisionsRef.current.map(decision => [decision.id, decision]));
-    const freshIds = new Set<string>();
-    const freshOrder = new Map<string, number>();
-    newDecisions.forEach(decision => {
-      const existing = previousMap.get(decision.id);
-      if (!existing || existing.timestamp.getTime() !== decision.timestamp.getTime() || existing.reasoning !== decision.reasoning) {
-        freshOrder.set(decision.id, freshOrder.size);
-        freshIds.add(decision.id);
-      }
-    });
-    newDecisionIdsRef.current = freshIds;
-    newDecisionOrderRef.current = freshOrder;
-    
+          const previousMap = new Map(decisionsRef.current.map(decision => [decision.id, decision]));
+          const freshIds = new Set<string>();
+          const freshOrder = new Map<string, number>();
+          newDecisions.forEach(decision => {
+            const existing = previousMap.get(decision.id);
+            if (!existing || existing.timestamp.getTime() !== decision.timestamp.getTime() || existing.reasoning !== decision.reasoning) {
+              freshOrder.set(decision.id, freshOrder.size);
+              freshIds.add(decision.id);
+            }
+          });
+          newDecisionIdsRef.current = freshIds;
+          newDecisionOrderRef.current = freshOrder;
+          
     // Merge new decisions
-    setDecisions(prev => {
+          setDecisions(prev => {
       if (!isMounted) return prev;
       if (newDecisions.length === 0) return prev;
-      
-      const merged = [...newDecisions];
-      const seenIds = new Set(newDecisions.map(d => d.id));
-      const remaining = prev.filter(d => !seenIds.has(d.id));
-      merged.push(...remaining);
-      merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      return merged.slice(0, MAX_DECISIONS);
-    });
-    
-    if (!hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      setLoading(false);
-    }
+            
+            const merged = [...newDecisions];
+            const seenIds = new Set(newDecisions.map(d => d.id));
+            const remaining = prev.filter(d => !seenIds.has(d.id));
+            merged.push(...remaining);
+            merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+            return merged.slice(0, MAX_DECISIONS);
+          });
+          
+          if (!hasLoadedRef.current) {
+            hasLoadedRef.current = true;
+            setLoading(false);
+          }
   };
 
   // Fetch agent summary via WebSocket - real-time updates
@@ -568,14 +568,14 @@ export const AISummaryPanel = ({ onTradeClick }: AISummaryPanelProps = {}) => {
             }
           } catch (err) {
             console.error('[AISummary] Failed to fetch summary:', err);
-            if (!hasLoadedRef.current) {
-              hasLoadedRef.current = true;
-              setLoading(false);
-            }
-          }
-        };
-        
-        loadSummary();
+        if (!hasLoadedRef.current) {
+          hasLoadedRef.current = true;
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadSummary();
         fallbackInterval = setInterval(loadSummary, 30 * 1000);
       }
     };

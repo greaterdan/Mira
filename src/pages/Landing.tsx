@@ -6,6 +6,8 @@ import { ArrowRight } from "lucide-react";
 import { PredictionBubbleField } from "@/components/PredictionBubbleField";
 import { PredictionNodeData } from "@/components/PredictionNode";
 import { TypewriterText } from "@/components/TypewriterText";
+import { Terminal } from "@/components/Terminal";
+import { ScrollingText } from "@/components/ScrollingText";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -114,7 +116,15 @@ const Landing = () => {
       >
         <Button
           onClick={handleEnterApp}
-          className="flex items-center gap-2 px-6 py-2.5 bg-terminal-accent hover:bg-terminal-accent/90 text-background font-medium rounded-lg transition-colors shadow-lg"
+          className="flex items-center gap-2 px-6 py-2.5 font-medium transition-colors shadow-lg button-shine"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '16px',
+          }}
         >
           Enter App
           <ArrowRight className="w-4 h-4" />
@@ -163,7 +173,8 @@ const Landing = () => {
         </h1>
         <div 
           style={{ 
-            fontFamily: "'Boge', sans-serif",
+            fontFamily: "'Arial Black', 'Arial', sans-serif",
+            fontWeight: 'bold',
             color: '#FFFFFF',
             fontSize: '1.5rem',
             marginTop: '-1rem',
@@ -175,7 +186,8 @@ const Landing = () => {
         </div>
         <div 
           style={{ 
-            fontFamily: "'Boge', sans-serif",
+            fontFamily: "'Arial Black', 'Arial', sans-serif",
+            fontWeight: 'bold',
             color: '#FFFFFF',
             fontSize: '1rem',
             marginTop: '0.5rem',
@@ -190,9 +202,26 @@ const Landing = () => {
         </div>
       </motion.div>
 
+      {/* Terminal Component - Center of Screen */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 1 }}
+        className="fixed z-40"
+        style={{ 
+          width: '650px', 
+          maxWidth: 'calc(100vw - 4rem)',
+          top: '50%',
+          left: 'calc(50% + 5cm)',
+          transform: 'translate(-50%, -50%)'
+        }}
+      >
+        <Terminal />
+      </motion.div>
+
       {/* Bottom Navbar */}
       <div 
-        className="fixed bottom-0 left-0 right-0"
+        className="fixed bottom-0 left-0 right-0 flex items-center"
         style={{
           height: '40px',
           backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -202,7 +231,13 @@ const Landing = () => {
           boxShadow: '0 -2px 10px rgba(255, 255, 255, 0.05)',
           zIndex: 30,
         }}
-      />
+      >
+        <ScrollingText 
+          text="$MIRA"
+          speed={30}
+          className="flex-1"
+        />
+      </div>
     </div>
   );
 };

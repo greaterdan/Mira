@@ -4,7 +4,7 @@ import { CustodialWallet } from "./CustodialWallet";
 import { getOrCreateWallet, getStoredWallet, getCustodialWallet, storeCustodialWallet } from "@/lib/wallet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Bot, BarChart3, Users, Newspaper, Github, FileText, Mail, Copy, Check, Star } from "lucide-react";
+import { Bot, BarChart3, Users, Newspaper, FileText, Mail, Copy, Check, Star } from "lucide-react";
 
 interface SystemStatusBarProps {
   onToggleWaitlist?: () => void;
@@ -233,21 +233,12 @@ export const SystemStatusBar = ({
         </h1>
       </div>
 
-      {/* Center - GitHub, README, Contact - Absolutely centered */}
+      {/* Center - X (Twitter), Contact - Absolutely centered */}
       <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open('https://github.com/greaterdan/Mira', '_blank', 'noopener,noreferrer')}
-          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
-          title="GitHub"
-        >
-          <Github className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.open('https://x.com/MIRAtech', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open('https://x.com/miramaps', '_blank', 'noopener,noreferrer')}
           className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
           title="X (Twitter)"
         >
@@ -258,15 +249,6 @@ export const SystemStatusBar = ({
           >
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
           </svg>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.open('https://github.com/greaterdan/mira/blob/main/README.md', '_blank', 'noopener,noreferrer')}
-          className="h-7 w-7 p-0 border-border bg-background hover:bg-bg-elevated text-foreground hover:text-foreground rounded-full"
-          title="README"
-        >
-          <FileText className="w-3.5 h-3.5" />
         </Button>
         <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
           <DialogTrigger asChild>
