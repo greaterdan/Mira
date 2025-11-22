@@ -6,8 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Settings, Shield, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { useState } from "react";
+import { TwoFactorAuthModal } from "./TwoFactorAuthModal";
 
 interface LoginButtonProps {
   onLogin?: (email: string) => void;
@@ -23,6 +25,10 @@ export const LoginButton = ({
   userEmail
 }: LoginButtonProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [has2FA, setHas2FA] = useState(false);
 
   const handleGoogleLogin = () => {
     setIsConnecting(true);
@@ -118,11 +124,36 @@ export const LoginButton = ({
       if (response.ok) {
         const data = await response.json();
         if (data.authenticated && data.user?.email) {
+          setTwoFAEnabled(data.twoFAEnabled || false);
           onLogin?.(data.user.email);
         }
       }
     } catch (error) {
       console.debug('Auth check failed:', error);
+    }
+  };
+
+  // Check 2FA status when logged in
+  useEffect(() => {
+    if (isLoggedIn && userEmail) {
+      check2FAStatus();
+    } else {
+      setTwoFAEnabled(false);
+    }
+  }, [isLoggedIn, userEmail]);
+
+  const check2FAStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/2fa/status`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTwoFAEnabled(data.enabled || false);
+      }
+    } catch (error) {
+      console.debug('2FA status check failed:', error);
     }
   };
 
@@ -174,6 +205,26 @@ export const LoginButton = ({
     checkAuth();
   }, [onLogin, isLoggedIn]);
 
+  // Check if user has 2FA enabled
+  useEffect(() => {
+    if (isLoggedIn && userEmail) {
+      const check2FA = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/auth/2fa/status`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setHas2FA(data.enabled || false);
+          }
+        } catch (error) {
+          console.debug('2FA status check failed:', error);
+        }
+      };
+      check2FA();
+    }
+  }, [isLoggedIn, userEmail]);
+
   if (isLoggedIn) {
     return (
       <DropdownMenu>
@@ -187,12 +238,35 @@ export const LoginButton = ({
             {userEmail?.split('@')[0] || 'Logged In'}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-background border-border">
+        <DropdownMenuContent align="end" className="w-56 bg-background border-border z-[9999]" style={{ pointerEvents: 'auto' }}>
           {userEmail && (
             <div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border">
               {userEmail}
             </div>
           )}
+          <DropdownMenuItem
+            onClick={() => setShow2FAModal(true)}
+            className="text-xs cursor-pointer"
+          >
+            {has2FA ? (
+              <>
+                <ShieldCheck className="w-3 h-3 mr-2 text-green-500" />
+                2FA Enabled
+              </>
+            ) : (
+              <>
+                <Shield className="w-3 h-3 mr-2" />
+                Enable 2FA
+              </>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-xs cursor-pointer"
+            disabled
+          >
+            <Settings className="w-3 h-3 mr-2" />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={handleLogout}
             className="text-xs cursor-pointer"
@@ -201,6 +275,15 @@ export const LoginButton = ({
             Logout
           </DropdownMenuItem>
         </DropdownMenuContent>
+        {show2FAModal && (
+          <TwoFactorAuthModal
+            isOpen={show2FAModal}
+            onClose={() => setShow2FAModal(false)}
+            userEmail={userEmail || ''}
+            has2FA={has2FA}
+            on2FAStatusChange={(enabled) => setHas2FA(enabled)}
+          />
+        )}
       </DropdownMenu>
     );
   }

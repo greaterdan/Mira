@@ -46,6 +46,8 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { fetchAllMarkets } from './services/polymarketService.js';
 import { transformMarkets } from './services/marketTransformer.js';
 import { mapCategoryToPolymarket } from './utils/categoryMapper.js';
+import speakeasy from 'speakeasy';
+import QRCode from 'qrcode';
 // Import agents API lazily to not block server startup
 // These will be loaded dynamically when routes are registered
 let getAgentTrades, getAgentsSummary, getAgentsStats;
@@ -431,25 +433,282 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
   // Google OAuth callback
   app.get('/api/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/auth-popup-callback?error=1' }),
-    (req, res) => {
-      // Successful authentication - redirect to popup callback page
-      // The user object is stored in req.user via Passport
-      res.redirect('/auth-popup-callback?success=1');
+    async (req, res) => {
+      // Check if user has 2FA enabled
+      try {
+        const email = req.user.email;
+        const key = `2fa:${email}`;
+        
+        let has2FA = false;
+        if (walletStorageClient) {
+          const secret = await walletStorageClient.get(key);
+          has2FA = !!secret;
+        } else {
+          has2FA = !!inMemoryWalletStorage.get(key);
+        }
+
+        if (has2FA) {
+          // User has 2FA enabled - redirect to 2FA verification page
+          req.session.requires2FA = true;
+          req.session.twoFactorVerified = false;
+          res.redirect('/auth-popup-callback?2fa=required');
+        } else {
+          // No 2FA - proceed normally
+          req.session.twoFactorVerified = true;
+          res.redirect('/auth-popup-callback?success=1');
+        }
+      } catch (error) {
+        console.error('2FA check error:', error);
+        // On error, proceed without 2FA check
+        req.session.twoFactorVerified = true;
+        res.redirect('/auth-popup-callback?success=1');
+      }
     }
   );
 
   // Get current user session
-  app.get('/api/auth/me', (req, res) => {
+  app.get('/api/auth/me', async (req, res) => {
     if (req.user) {
+      // Check 2FA status
+      let twoFAEnabled = false;
+      try {
+        const twoFactorData = await get2FAFromStorage(req.user.email);
+        twoFAEnabled = twoFactorData?.enabled === true;
+      } catch (error) {
+        console.error('Error checking 2FA status:', error);
+      }
+      
       res.json({
         authenticated: true,
         user: req.user,
+        twoFAEnabled: twoFAEnabled,
+        twoFAVerified: req.session?.twoFactorVerified === true,
       });
     } else {
       res.json({
         authenticated: false,
         user: null,
+        twoFAEnabled: false,
+        twoFAVerified: false,
       });
+    }
+  });
+
+  // 2FA Routes
+  // Generate 2FA secret and QR code
+  app.post('/api/auth/2fa/generate', async (req, res) => {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const speakeasy = await import('speakeasy');
+      const QRCode = await import('qrcode');
+      
+      const secret = speakeasy.generateSecret({
+        name: `MIRA (${req.user.email})`,
+        issuer: 'MIRA',
+        length: 32,
+      });
+
+      const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+      // Store the secret temporarily in session (will be saved when verified)
+      req.session.temp2FASecret = secret.base32;
+
+      res.json({
+        secret: secret.base32,
+        qrCodeUrl: qrCodeUrl,
+      });
+    } catch (error) {
+      console.error('2FA generation error:', error);
+      res.status(500).json({ error: 'Failed to generate 2FA secret' });
+    }
+  });
+
+  // Enable 2FA (verify code and save secret)
+  app.post('/api/auth/2fa/enable', async (req, res) => {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { code } = req.body;
+    if (!code || code.length !== 6) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    try {
+      const speakeasy = await import('speakeasy');
+      const secret = req.session.temp2FASecret;
+      
+      if (!secret) {
+        return res.status(400).json({ error: 'No 2FA secret found. Please generate a new one.' });
+      }
+
+      // Verify the code
+      const verified = speakeasy.totp.verify({
+        secret: secret,
+        encoding: 'base32',
+        token: code,
+        window: 2, // Allow 2 time steps (60 seconds) of tolerance
+      });
+
+      if (!verified) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+
+      // Save 2FA secret to Redis (keyed by email)
+      const email = req.user.email;
+      const key = `2fa:${email}`;
+      
+      try {
+        if (walletStorageClient) {
+          await walletStorageClient.set(key, secret);
+          await walletStorageClient.expire(key, 10 * 365 * 24 * 60 * 60); // 10 years
+        } else {
+          // Fallback to in-memory (not recommended for production)
+          inMemoryWalletStorage.set(key, secret);
+        }
+
+        // Clear temp secret from session
+        delete req.session.temp2FASecret;
+
+        res.json({ success: true, message: '2FA enabled successfully' });
+      } catch (storageError) {
+        console.error('Failed to save 2FA secret:', storageError);
+        res.status(500).json({ error: 'Failed to save 2FA secret' });
+      }
+    } catch (error) {
+      console.error('2FA enable error:', error);
+      res.status(500).json({ error: 'Failed to enable 2FA' });
+    }
+  });
+
+  // Check 2FA status
+  app.get('/api/auth/2fa/status', async (req, res) => {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      const email = req.user.email;
+      const key = `2fa:${email}`;
+      
+      let secret = null;
+      if (walletStorageClient) {
+        secret = await walletStorageClient.get(key);
+      } else {
+        secret = inMemoryWalletStorage.get(key);
+      }
+
+      res.json({ enabled: !!secret });
+    } catch (error) {
+      console.error('2FA status check error:', error);
+      res.status(500).json({ error: 'Failed to check 2FA status' });
+    }
+  });
+
+  // Disable 2FA
+  app.post('/api/auth/2fa/disable', async (req, res) => {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { code } = req.body;
+    if (!code || code.length !== 6) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    try {
+      const speakeasy = await import('speakeasy');
+      const email = req.user.email;
+      const key = `2fa:${email}`;
+      
+      // Get the secret
+      let secret = null;
+      if (walletStorageClient) {
+        secret = await walletStorageClient.get(key);
+      } else {
+        secret = inMemoryWalletStorage.get(key);
+      }
+
+      if (!secret) {
+        return res.status(400).json({ error: '2FA is not enabled' });
+      }
+
+      // Verify the code before disabling
+      const verified = speakeasy.totp.verify({
+        secret: secret,
+        encoding: 'base32',
+        token: code,
+        window: 2,
+      });
+
+      if (!verified) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+
+      // Delete the secret
+      if (walletStorageClient) {
+        await walletStorageClient.del(key);
+      } else {
+        inMemoryWalletStorage.delete(key);
+      }
+
+      res.json({ success: true, message: '2FA disabled successfully' });
+    } catch (error) {
+      console.error('2FA disable error:', error);
+      res.status(500).json({ error: 'Failed to disable 2FA' });
+    }
+  });
+
+  // Verify 2FA code (used during login)
+  app.post('/api/auth/2fa/verify', async (req, res) => {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { code } = req.body;
+    if (!code || code.length !== 6) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    try {
+      const speakeasy = await import('speakeasy');
+      const email = req.user.email;
+      const key = `2fa:${email}`;
+      
+      // Get the secret
+      let secret = null;
+      if (walletStorageClient) {
+        secret = await walletStorageClient.get(key);
+      } else {
+        secret = inMemoryWalletStorage.get(key);
+      }
+
+      if (!secret) {
+        return res.status(400).json({ error: '2FA is not enabled' });
+      }
+
+      // Verify the code
+      const verified = speakeasy.totp.verify({
+        secret: secret,
+        encoding: 'base32',
+        token: code,
+        window: 2,
+      });
+
+      if (!verified) {
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
+
+      // Mark 2FA as verified in session
+      req.session.twoFactorVerified = true;
+
+      res.json({ success: true, message: '2FA verified successfully' });
+    } catch (error) {
+      console.error('2FA verify error:', error);
+      res.status(500).json({ error: 'Failed to verify 2FA code' });
     }
   });
 
@@ -504,6 +763,303 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
     res.json({ success: true, message: 'Logged out (OAuth not configured)' });
   });
 }
+
+// ============ 2FA (Two-Factor Authentication) Functions ============
+
+// Helper functions for 2FA storage (similar to wallet storage)
+async function get2FAFromStorage(email) {
+  if (!email) return null;
+  
+  const key = `2fa:${email}`;
+  
+  // Try Redis first
+  if (walletStorageClient) {
+    try {
+      const data = await walletStorageClient.get(key);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (error) {
+      console.warn('[2FA] Redis get failed, trying in-memory:', error.message);
+    }
+  }
+  
+  // Fallback to in-memory
+  return inMemoryWalletStorage.get(key) || null;
+}
+
+async function save2FAToStorage(email, twoFactorData) {
+  if (!email) return false;
+  
+  const key = `2fa:${email}`;
+  const data = JSON.stringify(twoFactorData);
+  
+  // Try Redis first
+  if (walletStorageClient) {
+    try {
+      await walletStorageClient.set(key, data);
+      // Set expiration to 10 years (2FA settings should persist)
+      await walletStorageClient.expire(key, 10 * 365 * 24 * 60 * 60);
+      return true;
+    } catch (error) {
+      console.warn('[2FA] Redis save failed, using in-memory:', error.message);
+    }
+  }
+  
+  // Fallback to in-memory
+  inMemoryWalletStorage.set(key, twoFactorData);
+  return true;
+}
+
+async function delete2FAFromStorage(email) {
+  if (!email) return false;
+  
+  const key = `2fa:${email}`;
+  
+  // Try Redis first
+  if (walletStorageClient) {
+    try {
+      await walletStorageClient.del(key);
+      return true;
+    } catch (error) {
+      console.warn('[2FA] Redis delete failed:', error.message);
+    }
+  }
+  
+  // Fallback to in-memory
+  inMemoryWalletStorage.delete(key);
+  return true;
+}
+
+// 2FA API Endpoints (require authentication)
+// Get 2FA setup data (generate secret and QR code)
+app.get('/api/auth/2fa/setup', async (req, res) => {
+  try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'You must be logged in to set up 2FA',
+      });
+    }
+
+    const email = req.user.email;
+    const serviceName = process.env.APP_NAME || 'Aura Predict';
+    
+    // Generate a secret key
+    const secret = speakeasy.generateSecret({
+      name: `${serviceName} (${email})`,
+      issuer: serviceName,
+      length: 32,
+    });
+
+    // Generate QR code data URL
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    // Store temporary secret in session (don't enable yet - wait for verification)
+    if (!req.session) {
+      req.session = {};
+    }
+    req.session.temp2FASecret = secret.base32;
+
+    res.json({
+      success: true,
+      secret: secret.base32,
+      qrCode: qrCodeUrl,
+      manualEntryKey: secret.base32,
+    });
+  } catch (error) {
+    console.error('Error setting up 2FA:', error);
+    res.status(500).json({
+      error: isProduction ? 'Internal server error' : error.message,
+    });
+  }
+});
+
+// Enable 2FA (verify token and enable)
+app.post('/api/auth/2fa/enable', async (req, res) => {
+  try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'You must be logged in to enable 2FA',
+      });
+    }
+
+    const { token } = req.body;
+    const email = req.user.email;
+
+    if (!token || !/^\d{6}$/.test(token)) {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'Token must be a 6-digit code',
+      });
+    }
+
+    // Get temporary secret from session
+    const tempSecret = req.session?.temp2FASecret;
+    if (!tempSecret) {
+      return res.status(400).json({
+        error: 'No 2FA setup in progress',
+        message: 'Please start 2FA setup first',
+      });
+    }
+
+    // Verify the token
+    const verified = speakeasy.totp.verify({
+      secret: tempSecret,
+      encoding: 'base32',
+      token: token,
+      window: 2, // Allow 2 time steps (60 seconds) before/after current time
+    });
+
+    if (!verified) {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'The verification code is incorrect. Please try again.',
+      });
+    }
+
+    // Save 2FA secret to storage
+    await save2FAToStorage(email, {
+      secret: tempSecret,
+      enabled: true,
+      enabledAt: new Date().toISOString(),
+    });
+
+    // Clear temporary secret from session
+    if (req.session) {
+      delete req.session.temp2FASecret;
+    }
+
+    res.json({
+      success: true,
+      message: '2FA enabled successfully',
+    });
+  } catch (error) {
+    console.error('Error enabling 2FA:', error);
+    res.status(500).json({
+      error: isProduction ? 'Internal server error' : error.message,
+    });
+  }
+});
+
+// Get 2FA status
+app.get('/api/auth/2fa/status', async (req, res) => {
+  try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+      });
+    }
+
+    const email = req.user.email;
+    const twoFactorData = await get2FAFromStorage(email);
+
+    res.json({
+      enabled: twoFactorData?.enabled === true,
+      enabledAt: twoFactorData?.enabledAt || null,
+    });
+  } catch (error) {
+    console.error('Error getting 2FA status:', error);
+    res.status(500).json({
+      error: isProduction ? 'Internal server error' : error.message,
+    });
+  }
+});
+
+// Verify 2FA token (used during login if 2FA is enabled)
+app.post('/api/auth/2fa/verify', async (req, res) => {
+  try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'You must be logged in',
+      });
+    }
+
+    const { token } = req.body;
+    const email = req.user.email;
+
+    if (!token || !/^\d{6}$/.test(token)) {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'Token must be a 6-digit code',
+      });
+    }
+
+    // Get 2FA secret from storage
+    const twoFactorData = await get2FAFromStorage(email);
+    if (!twoFactorData || !twoFactorData.enabled) {
+      return res.status(400).json({
+        error: '2FA not enabled',
+        message: 'Two-factor authentication is not enabled for this account',
+      });
+    }
+
+    // Verify the token
+    const verified = speakeasy.totp.verify({
+      secret: twoFactorData.secret,
+      encoding: 'base32',
+      token: token,
+      window: 2, // Allow 2 time steps (60 seconds) before/after current time
+    });
+
+    if (!verified) {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'The verification code is incorrect. Please try again.',
+      });
+    }
+
+    // Mark 2FA as verified in session
+    if (!req.session) {
+      req.session = {};
+    }
+    req.session.twoFactorVerified = true;
+
+    res.json({
+      success: true,
+      message: '2FA verification successful',
+    });
+  } catch (error) {
+    console.error('Error verifying 2FA:', error);
+    res.status(500).json({
+      error: isProduction ? 'Internal server error' : error.message,
+    });
+  }
+});
+
+// Disable 2FA
+app.post('/api/auth/2fa/disable', async (req, res) => {
+  try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'You must be logged in to disable 2FA',
+      });
+    }
+
+    const email = req.user.email;
+
+    // Delete 2FA data
+    await delete2FAFromStorage(email);
+
+    // Clear 2FA verification from session
+    if (req.session) {
+      delete req.session.twoFactorVerified;
+    }
+
+    res.json({
+      success: true,
+      message: '2FA disabled successfully',
+    });
+  } catch (error) {
+    console.error('Error disabling 2FA:', error);
+    res.status(500).json({
+      error: isProduction ? 'Internal server error' : error.message,
+    });
+  }
+});
 
 // Shared Redis client for caching (wallets, predictions, news, agent summary)
 // Use Redis if available, otherwise fallback to in-memory (not recommended for production)

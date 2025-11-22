@@ -49,11 +49,119 @@
       const urlParams = new URLSearchParams(window.location.search);
       const success = urlParams.get('success');
       const error = urlParams.get('error');
+      const requires2FA = urlParams.get('2fa') === 'required';
       
       // Get the origin from the current window location
       const origin = window.location.origin;
       
-      if (success === '1') {
+      if (requires2FA) {
+        // 2FA required - show verification form
+        document.querySelector('.message').textContent = '2FA Verification Required';
+        document.body.innerHTML = `
+          <div class="container">
+            <h2 style="margin-bottom: 1rem;">Two-Factor Authentication</h2>
+            <p style="margin-bottom: 1.5rem; color: #888;">Enter the 6-digit code from your authenticator app</p>
+            <input 
+              type="text" 
+              id="twoFactorCode" 
+              placeholder="000000" 
+              maxlength="6" 
+              style="
+                width: 200px;
+                padding: 12px;
+                font-size: 24px;
+                text-align: center;
+                letter-spacing: 8px;
+                font-family: monospace;
+                border: 2px solid #333;
+                background: #1a1a1a;
+                color: #fff;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+              "
+              autocomplete="off"
+            />
+            <div id="error" style="color: #ff4444; margin-bottom: 1rem; min-height: 20px;"></div>
+            <button 
+              id="verifyBtn"
+              style="
+                padding: 10px 24px;
+                background: #4285F4;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+              "
+            >Verify</button>
+          </div>
+        `;
+        
+        const codeInput = document.getElementById('twoFactorCode');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const errorDiv = document.getElementById('error');
+        
+        codeInput.focus();
+        
+        codeInput.addEventListener('input', (e) => {
+          e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+          errorDiv.textContent = '';
+        });
+        
+        codeInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && codeInput.value.length === 6) {
+            verifyBtn.click();
+          }
+        });
+        
+        verifyBtn.addEventListener('click', async () => {
+          const code = codeInput.value;
+          if (code.length !== 6) {
+            errorDiv.textContent = 'Please enter a 6-digit code';
+            return;
+          }
+          
+          verifyBtn.disabled = true;
+          verifyBtn.textContent = 'Verifying...';
+          
+          try {
+            const response = await fetch('/api/auth/2fa/verify', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ code }),
+            });
+            
+            if (response.ok) {
+              // 2FA verified - notify parent window
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'GOOGLE_AUTH_SUCCESS'
+                }, origin);
+                
+                setTimeout(() => {
+                  window.close();
+                }, 500);
+              } else {
+                window.location.href = '/';
+              }
+            } else {
+              const errorData = await response.json();
+              errorDiv.textContent = errorData.error || 'Invalid code. Please try again.';
+              codeInput.value = '';
+              codeInput.focus();
+              verifyBtn.disabled = false;
+              verifyBtn.textContent = 'Verify';
+            }
+          } catch (err) {
+            errorDiv.textContent = 'Verification failed. Please try again.';
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify';
+          }
+        });
+      } else if (success === '1') {
         // Authentication successful - notify parent window
         if (window.opener) {
           window.opener.postMessage({
