@@ -5,11 +5,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User, Settings, Shield, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from "@/lib/apiConfig";
-import { useState } from "react";
 import { TwoFactorAuthModal } from "./TwoFactorAuthModal";
+import { TwoFactorVerifyModal } from "./TwoFactorVerifyModal";
 
 interface LoginButtonProps {
   onLogin?: (email: string) => void;
@@ -27,8 +29,7 @@ export const LoginButton = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [show2FASetup, setShow2FASetup] = useState(false);
-  const [show2FAModal, setShow2FAModal] = useState(false);
-  const [has2FA, setHas2FA] = useState(false);
+  const [show2FAVerify, setShow2FAVerify] = useState(false);
 
   const handleGoogleLogin = () => {
     setIsConnecting(true);
@@ -125,7 +126,15 @@ export const LoginButton = ({
         const data = await response.json();
         if (data.authenticated && data.user?.email) {
           setTwoFAEnabled(data.twoFAEnabled || false);
-          onLogin?.(data.user.email);
+          
+          // Check if 2FA is enabled and verification is required
+          if (data.twoFAEnabled && !data.twoFAVerified) {
+            // Show 2FA verification modal
+            setShow2FAVerify(true);
+          } else {
+            // 2FA is either not enabled or already verified, proceed with login
+            onLogin?.(data.user.email);
+          }
         }
       }
     } catch (error) {
@@ -167,6 +176,7 @@ export const LoginButton = ({
       if (!response.ok) {
         console.error('Logout failed');
       }
+      setTwoFAEnabled(false);
       onLogout?.();
     } catch (error) {
       console.error('Logout error:', error);
@@ -192,6 +202,7 @@ export const LoginButton = ({
         const data = await response.json();
           if (data.authenticated && data.user?.email) {
             // User is logged in via OAuth
+            setTwoFAEnabled(data.twoFAEnabled || false);
             onLogin?.(data.user.email);
           }
       }
@@ -205,86 +216,121 @@ export const LoginButton = ({
     checkAuth();
   }, [onLogin, isLoggedIn]);
 
-  // Check if user has 2FA enabled
-  useEffect(() => {
-    if (isLoggedIn && userEmail) {
-      const check2FA = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/auth/2fa/status`, {
-            credentials: 'include',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setHas2FA(data.enabled || false);
-          }
-        } catch (error) {
-          console.debug('2FA status check failed:', error);
-        }
-      };
-      check2FA();
-    }
-  }, [isLoggedIn, userEmail]);
-
   if (isLoggedIn) {
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2.5 text-xs font-mono border-border bg-background hover:bg-bg-elevated rounded-full"
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs font-mono border-border bg-background hover:bg-bg-elevated rounded-full"
+              onClick={(e) => {
+                // Prevent any default behavior that might interfere
+                e.stopPropagation();
+              }}
+            >
+              <User className="w-2.5 h-2.5 mr-1.5" />
+              {userEmail?.split('@')[0] || 'Logged In'}
+              {twoFAEnabled && (
+                <ShieldCheck className="w-2.5 h-2.5 ml-1.5 text-green-500" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent 
+            align="end" 
+            className="w-56 bg-background border-border z-[9999]"
+            onClick={(e) => {
+              // Prevent clicks inside dropdown from closing it immediately
+              e.stopPropagation();
+            }}
           >
-            <User className="w-2.5 h-2.5 mr-1.5" />
-            {userEmail?.split('@')[0] || 'Logged In'}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-background border-border z-[9999]" style={{ pointerEvents: 'auto' }}>
-          {userEmail && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border">
-              {userEmail}
-            </div>
-          )}
-          <DropdownMenuItem
-            onClick={() => setShow2FAModal(true)}
-            className="text-xs cursor-pointer"
-          >
-            {has2FA ? (
+            {userEmail && (
               <>
-                <ShieldCheck className="w-3 h-3 mr-2 text-green-500" />
-                2FA Enabled
-              </>
-            ) : (
-              <>
-                <Shield className="w-3 h-3 mr-2" />
-                Enable 2FA
+                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-normal">
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">{userEmail}</span>
+                    {twoFAEnabled && (
+                      <span className="text-[10px] text-green-500 flex items-center gap-1 mt-0.5">
+                        <ShieldCheck className="w-3 h-3" />
+                        2FA Enabled
+                      </span>
+                    )}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
               </>
             )}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-xs cursor-pointer"
-            disabled
-          >
-            <Settings className="w-3 h-3 mr-2" />
-            Settings
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleLogout}
-            className="text-xs cursor-pointer"
-          >
-            <LogOut className="w-3 h-3 mr-2" />
-            Logout
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-        {show2FAModal && (
-          <TwoFactorAuthModal
-            isOpen={show2FAModal}
-            onClose={() => setShow2FAModal(false)}
-            userEmail={userEmail || ''}
-            has2FA={has2FA}
-            on2FAStatusChange={(enabled) => setHas2FA(enabled)}
-          />
-        )}
-      </DropdownMenu>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShow2FASetup(true);
+              }}
+              className="text-xs cursor-pointer focus:bg-accent"
+            >
+              {twoFAEnabled ? (
+                <>
+                  <ShieldCheck className="w-3 h-3 mr-2 text-green-500" />
+                  Manage 2FA
+                </>
+              ) : (
+                <>
+                  <Shield className="w-3 h-3 mr-2" />
+                  Enable 2FA
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Placeholder for settings - can be implemented later
+              }}
+              className="text-xs cursor-pointer focus:bg-accent"
+            >
+              <Settings className="w-3 h-3 mr-2" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogout();
+              }}
+              className="text-xs cursor-pointer focus:bg-accent text-destructive focus:text-destructive"
+            >
+              <LogOut className="w-3 h-3 mr-2" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <TwoFactorAuthModal
+          isOpen={show2FASetup}
+          onClose={() => {
+            setShow2FASetup(false);
+            check2FAStatus();
+          }}
+          userEmail={userEmail || ''}
+          has2FA={twoFAEnabled}
+          on2FAStatusChange={(enabled) => {
+            setTwoFAEnabled(enabled);
+            check2FAStatus();
+          }}
+        />
+        <TwoFactorVerifyModal
+          open={show2FAVerify}
+          onOpenChange={setShow2FAVerify}
+          email={userEmail}
+          onVerifySuccess={() => {
+            // After successful 2FA verification, complete the login
+            if (userEmail) {
+              onLogin?.(userEmail);
+            }
+          }}
+        />
+      </>
     );
   }
 
@@ -317,4 +363,3 @@ export const LoginButton = ({
     </button>
   );
 };
-

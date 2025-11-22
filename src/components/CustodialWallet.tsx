@@ -148,12 +148,24 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
           variant="outline"
           size="sm"
           className="h-7 px-2.5 text-xs font-mono border-border bg-background hover:bg-bg-elevated rounded-full"
+          onClick={(e) => {
+            // Prevent any default behavior that might interfere
+            e.stopPropagation();
+          }}
         >
           <Wallet className="w-2.5 h-2.5 mr-1.5" />
           {isLoading ? "..." : `${balance} SOL`}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 bg-background border-border">
+      <DropdownMenuContent 
+        align="end" 
+        className="w-64 bg-background border-border z-[9999]"
+        onClick={(e) => {
+          // Prevent clicks inside dropdown from closing it immediately
+          e.stopPropagation();
+        }}
+        style={{ pointerEvents: 'auto' }}
+      >
         <DropdownMenuLabel className="text-xs font-mono text-terminal-accent">
           CUSTODIAL WALLET
         </DropdownMenuLabel>
@@ -181,7 +193,11 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0 hover:bg-bg-elevated"
-              onClick={handleCopyAddress}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCopyAddress();
+              }}
             >
               <Copy className="w-3 h-3" />
             </Button>
@@ -192,16 +208,24 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
 
         {/* Actions */}
         <DropdownMenuItem
-          onClick={handleSendSol}
-          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSendSol();
+          }}
+          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated focus:bg-accent"
         >
           <Send className="w-3.5 h-3.5" />
           <span>Send SOL</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          onClick={() => setShowPrivateKey(!showPrivateKey)}
-          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowPrivateKey(!showPrivateKey);
+          }}
+          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated focus:bg-accent"
         >
           {showPrivateKey ? (
             <>
@@ -227,7 +251,11 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0 hover:bg-bg-elevated"
-                onClick={handleCopyPrivateKey}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCopyPrivateKey();
+                }}
               >
                 <Copy className="w-3 h-3" />
               </Button>
@@ -238,16 +266,24 @@ export const CustodialWallet = ({ walletAddress, privateKey }: CustodialWalletPr
         <DropdownMenuSeparator className="bg-border" />
 
         <DropdownMenuItem
-          onClick={handleExportPrivateKey}
-          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleExportPrivateKey();
+          }}
+          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated focus:bg-accent"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Export Private Key</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          onClick={fetchBalance}
-          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fetchBalance();
+          }}
+          className="text-xs cursor-pointer flex items-center gap-2 hover:bg-bg-elevated focus:bg-accent"
         >
           <Wallet className="w-3.5 h-3.5" />
           <span>Refresh Balance</span>
