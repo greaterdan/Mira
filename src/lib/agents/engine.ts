@@ -370,16 +370,16 @@ export async function generateTradeForMarket(
   // Otherwise, generate a realistic close date (within last 30 days)
   let closedAt: string | undefined = undefined;
   if (status === 'CLOSED') {
-    if (marketHasEnded && endDate) {
-      try {
-        const endDateObj = new Date(endDate);
-        // Use actual end date, but ensure it's after openedAt
-        closedAt = endDateObj > new Date(openedAt) 
-          ? endDateObj.toISOString() 
-          : new Date(new Date(openedAt).getTime() + 3600000).toISOString(); // 1 hour after open
-      } catch {
-        // Invalid date, use deterministic close time
-        closedAt = new Date(now - (index * 1000) + (Math.abs(marketHash % 3600000))).toISOString();
+  if (marketHasEnded && endDate) {
+    try {
+      const endDateObj = new Date(endDate);
+      // Use actual end date, but ensure it's after openedAt
+      closedAt = endDateObj > new Date(openedAt) 
+        ? endDateObj.toISOString() 
+        : new Date(new Date(openedAt).getTime() + 3600000).toISOString(); // 1 hour after open
+    } catch {
+      // Invalid date, use deterministic close time
+      closedAt = new Date(now - (index * 1000) + (Math.abs(marketHash % 3600000))).toISOString();
       }
     } else {
       // For deterministically closed trades (from active markets), create realistic close dates

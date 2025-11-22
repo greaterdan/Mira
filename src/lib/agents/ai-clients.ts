@@ -157,7 +157,7 @@ async function callAnthropic(context: MarketContext, webSearchResults?: any[]): 
 /**
  * xAI GROK API (GROK 4)
  */
-async function callGroq(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
+async function callGrok(context: MarketContext, webSearchResults?: any[]): Promise<AITradeDecision> {
   const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) {
     throw new Error('GROK_API_KEY not configured');
@@ -435,19 +435,23 @@ function parseAIResponse(content: string): AITradeDecision {
   try {
     let jsonStr = content.trim();
     
-    // Check for refusal responses first
+    // Check for refusal responses first - only check the first 200 chars to avoid false positives
+    // Refusals typically come at the start of responses
+    const firstPart = jsonStr.substring(0, 200).toLowerCase();
     const refusalIndicators = [
-      'do not feel comfortable',
-      'cannot',
-      'unable to',
-      'not comfortable',
-      'refuse',
-      'decline',
-      'outside of my',
-      'apologize',
+      'i cannot',
+      'i am unable to',
+      'i do not feel comfortable',
+      'i cannot provide',
+      'i refuse to',
+      'i decline to',
+      'i apologize, but i cannot',
+      'i\'m sorry, but i cannot',
+      'outside of my capabilities',
+      'i cannot assist',
     ];
     const isRefusal = refusalIndicators.some(indicator => 
-      jsonStr.toLowerCase().includes(indicator.toLowerCase())
+      firstPart.includes(indicator.toLowerCase())
     );
 
     if (isRefusal) {
@@ -482,7 +486,8 @@ function parseAIResponse(content: string): AITradeDecision {
     return { side, confidence, reasoning };
   } catch (error) {
     console.error('[AI] Failed to parse AI response:', error);
-    console.error('[AI] Raw response:', content.substring(0, 200)); // Log first 200 chars only
+    console.error('[AI] Raw response (first 500 chars):', content.substring(0, 500));
+    console.error('[AI] Raw response (full length):', content.length, 'chars');
     throw new Error(`Failed to parse AI response: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -536,7 +541,7 @@ export async function getAITradeDecision(
         decision = await callAnthropic(context);
         break;
       case 'GROK_4':
-        decision = await callGroq(context);
+        decision = await callGrok(context);
         break;
       case 'GEMINI_2_5':
         decision = await callGoogleAI(context);

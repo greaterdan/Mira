@@ -240,13 +240,13 @@ app.use(cors({
       if (isOriginAllowed(origin, allowedOrigins) || isRailwayOrigin) {
         // Return the actual origin (not true) when credentials are included
         callback(null, origin);
-      } else {
+    } else {
         // Log blocked requests (increased sampling for debugging)
         if (Math.random() < 0.1) {
           console.warn(`[CORS] Blocked request from origin: ${origin}`);
           console.warn(`[CORS] Allowed origins: ${allowedOrigins.join(', ')}`);
         }
-        callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'));
       }
     } else {
       // Development: Allow localhost and configured origins

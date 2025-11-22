@@ -293,16 +293,16 @@ export async function getAgentsSummary(req, res) {
     const SUMMARY_TIMEOUT_MS = 8000; // 8 second max wait for summary
     
     const getTradesWithTimeout = async (agentId) => {
-      try {
-        // Try cached trades first (fast path)
-        if (getCachedTradesQuick) {
-          const cached = await getCachedTradesQuick(agentId);
-          if (cached && cached.length > 0) {
-            console.log(`[API:${req.id}] 💾 Using cached trades for ${agentId}: ${cached.length} trades`);
-            return cached;
+        try {
+          // Try cached trades first (fast path)
+          if (getCachedTradesQuick) {
+            const cached = await getCachedTradesQuick(agentId);
+            if (cached && cached.length > 0) {
+              console.log(`[API:${req.id}] 💾 Using cached trades for ${agentId}: ${cached.length} trades`);
+              return cached;
+            }
           }
-        }
-        
+          
         // Cache miss - try to generate with timeout
         console.log(`[API:${req.id}] ⚠️ Cache miss for ${agentId} - attempting quick generation (timeout: ${SUMMARY_TIMEOUT_MS}ms)`);
         
@@ -328,10 +328,10 @@ export async function getAgentsSummary(req, res) {
           
           return []; // Return empty for now
         }
-      } catch (err) {
-        console.warn(`[API] Failed to get trades for agent ${agentId} for summary: ${err.message}`);
-        return []; // Return empty array for failed agents
-      }
+        } catch (err) {
+          console.warn(`[API] Failed to get trades for agent ${agentId} for summary: ${err.message}`);
+          return []; // Return empty array for failed agents
+        }
     };
     
     const results = await Promise.allSettled(
