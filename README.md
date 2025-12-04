@@ -8,7 +8,7 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-![MIRA Banner](public/1500x500.jpg)
+![MIRA Banner](https://raw.githubusercontent.com/Miramaps/Mira/main/public/1500x500.jpg)
 
 Real-time AI-powered prediction market interface with live trading analytics and neural network visualizations.
 
